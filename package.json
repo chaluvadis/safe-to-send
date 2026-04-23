@@ -1,8 +1,8 @@
 {
   "name": "safe-send",
-  "displayName": "Safe Send",
+  "displayName": "Safe Send Pro",
   "description": "Scan code for sensitive data before copying to AI tools.",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "private": true,
   "publisher": "chaluvadis",
   "engines": {
@@ -11,7 +11,7 @@
   },
   "categories": ["Other"],
   "main": "./dist/extension.js",
-  "activationEvents": ["onCommand:safeSend.scanAndCopyForAI"],
+  "activationEvents": ["onStartupFinished"],
   "contributes": {
     "commands": [
       {
