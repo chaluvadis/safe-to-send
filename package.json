@@ -3,7 +3,11 @@
   "displayName": "Safe Send Pro",
   "description": "Scan code for sensitive data before copying to AI tools.",
   "version": "0.2.0",
-  "private": true,
+  "private": false,
+  "license": "MIT",
+  "repository": "https://github.com/chaluvadis/safe-send-to-ai",
+  "keywords": ["vscode", "security", "ai", "clipboard", "sensitive-data", "sanitize"],
+  "icon": "icon.png",
   "publisher": "chaluvadis",
   "engines": {
     "vscode": "^1.90.0",
@@ -23,12 +27,15 @@
   "scripts": {
     "compile": "tsc -p ./",
     "build": "pnpm run compile",
+    "package": "vsce package",
+    "prepublish": "pnpm run compile",
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "pnpm run compile && node --test \"dist/**/*.test.js\""
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@vscode/vsce": "latest",
     "@types/node": "^24.0.0",
     "@types/vscode": "^1.90.0",
     "typescript": "^5.7.3"

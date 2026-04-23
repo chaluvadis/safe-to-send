@@ -4,9 +4,12 @@ import { detectSensitiveData, sanitizeSensitiveData } from "./sensitive";
 
 test("detectSensitiveData identifies all configured sensitive types", () => {
   const input = [
+    "const anthropic = 'sk-ant-12345678901234567890';",
     "const openai = 'sk-12345678901234567890';",
+    "const github = 'ghp_123456789012345678901234567890123456';",
     "const aws = 'AKIAABCDEFGHIJKLMNOP';",
     "const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def';",
+    "-----BEGIN PRIVATE KEY-----",
     "const ip = '10.20.30.40';",
     "const email = 'dev@example.com';",
     'password = "supersecret";',
@@ -14,9 +17,12 @@ test("detectSensitiveData identifies all configured sensitive types", () => {
 
   const detected = detectSensitiveData(input);
   assert.deepEqual(detected, [
+    "Anthropic API key",
     "OpenAI API key",
+    "GitHub token",
     "AWS key",
     "JWT token",
+    "Private key block",
     "IP address",
     "Email",
     "Hardcoded secret",
@@ -30,9 +36,12 @@ test("detectSensitiveData returns empty array for clean text", () => {
 
 test("detectSensitiveData finds each detector type in isolation", () => {
   const cases: Array<{ input: string; expected: string }> = [
+    { input: "sk-ant-12345678901234567890", expected: "Anthropic API key" },
     { input: "sk-12345678901234567890", expected: "OpenAI API key" },
+    { input: "ghp_123456789012345678901234567890123456", expected: "GitHub token" },
     { input: "AKIAABCDEFGHIJKLMNOP", expected: "AWS key" },
     { input: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def", expected: "JWT token" },
+    { input: "-----BEGIN PRIVATE KEY-----", expected: "Private key block" },
     { input: "192.168.1.1", expected: "IP address" },
     { input: "dev@example.com", expected: "Email" },
     { input: 'password = "abc"', expected: "Hardcoded secret" },
@@ -71,10 +80,13 @@ test("detectSensitiveData does not match near misses", () => {
 
 test("sanitizeSensitiveData replaces only sensitive values", () => {
   const input =
-    "token='sk-12345678901234567890' ip=127.0.0.1 email=dev@example.com password=\"abc\"";
+    "ant='sk-ant-12345678901234567890' token='sk-12345678901234567890' gh='ghp_123456789012345678901234567890123456' pk='-----BEGIN PRIVATE KEY-----' ip=127.0.0.1 email=dev@example.com password=\"abc\"";
 
   const output = sanitizeSensitiveData(input);
-  assert.equal(output, "token='<API_KEY>' ip=<IP_ADDRESS> email=<EMAIL> password=\"<SECRET>\"");
+  assert.equal(
+    output,
+    "ant='<ANTHROPIC_API_KEY>' token='<API_KEY>' gh='<GITHUB_TOKEN>' pk='<PRIVATE_KEY_BLOCK>' ip=<IP_ADDRESS> email=<EMAIL> password=\"<SECRET>\"",
+  );
 });
 
 test("sanitizeSensitiveData returns clean text unchanged", () => {
