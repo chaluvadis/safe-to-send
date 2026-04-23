@@ -14,12 +14,14 @@ export function suppressNextClipboardEvent(): void {
 export function registerEventManager(context: vscode.ExtensionContext): void {
   const interval = setInterval(async () => {
     try {
+      const current = await vscode.env.clipboard.readText();
+
       if (suppressCount > 0) {
         suppressCount -= 1;
+        lastClipboard = current;
         return;
       }
 
-      const current = await vscode.env.clipboard.readText();
       if (!current || current === lastClipboard) {
         return;
       }
@@ -44,6 +46,7 @@ export function registerEventManager(context: vscode.ExtensionContext): void {
 
       if (choice === "Sanitize Clipboard") {
         const sanitized = sanitize(current);
+        suppressNextClipboardEvent();
         await vscode.env.clipboard.writeText(sanitized);
         lastClipboard = sanitized;
         await vscode.window.showInformationMessage("Clipboard sanitized by Safe Send Pro");
