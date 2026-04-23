@@ -68,9 +68,9 @@ function createHarness(): Harness {
     return originalLoad(request, parent, isMain);
   };
 
-  const modulePath = require.resolve("./eventManager");
+   const modulePath = require.resolve("../src/eventManager");
   delete require.cache[modulePath];
-  const eventManager = require("./eventManager") as Harness["eventManager"];
+   const eventManager = require("../src/eventManager") as Harness["eventManager"];
   moduleWithInternals._load = originalLoad;
 
   const context = { subscriptions: [] as Array<{ dispose: () => void }> };

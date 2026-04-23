@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": "https://github.com/chaluvadis/safe-send-to-ai",
   "keywords": ["vscode", "security", "ai", "clipboard", "sensitive-data", "sanitize"],
-  "icon": "icon.png",
+   "icon": "assets/icon.png",
   "publisher": "chaluvadis",
   "engines": {
     "vscode": "^1.90.0",
@@ -36,10 +36,10 @@
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.4.12",
     "@vscode/vsce": "latest",
-    "@types/node": "^24.0.0",
-    "@types/vscode": "^1.90.0",
-    "typescript": "^5.7.3"
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.116.0",
+    "typescript": "^6.0.3"
   }
 }

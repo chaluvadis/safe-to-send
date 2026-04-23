@@ -1,6 +1,6 @@
 import assert = require("node:assert/strict");
 import test = require("node:test");
-import { sanitize } from "./sanitizer";
+import { sanitize } from "../src/sanitizer";
 
 test("sanitize replaces API key", () => {
   assert.equal(sanitize("sk-12345678901234567890"), "<API_KEY>");

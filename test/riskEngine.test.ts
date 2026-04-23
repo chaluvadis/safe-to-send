@@ -1,6 +1,6 @@
 import assert = require("node:assert/strict");
 import test = require("node:test");
-import { assessRisk } from "./riskEngine";
+import { assessRisk } from "../src/riskEngine";
 
 test("assessRisk returns LOW for clean text", () => {
   const result = assessRisk("const x = 1;");

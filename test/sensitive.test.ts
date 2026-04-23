@@ -1,6 +1,6 @@
 import assert = require("node:assert/strict");
 import test = require("node:test");
-import { detectSensitiveData, sanitizeSensitiveData } from "./sensitive";
+import { detectSensitiveData, sanitizeSensitiveData } from "../src/sensitive";
 
 test("detectSensitiveData identifies all configured sensitive types", () => {
   const input = [
