@@ -27,6 +27,7 @@
   "scripts": {
     "compile": "tsc -p ./",
     "build": "pnpm run compile",
+    "icon": "node scripts/generate-icon.mjs",
     "package": "vsce package",
     "prepublish": "pnpm run compile",
     "lint": "biome check .",
@@ -34,6 +35,7 @@
     "test": "pnpm run compile && node --test \"dist/**/*.test.js\""
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@biomejs/biome": "^1.9.4",
     "@vscode/vsce": "latest",
     "@types/node": "^24.0.0",
