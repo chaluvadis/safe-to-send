@@ -1,4 +1,4 @@
-# Safe Send Pro
+# Safe Send
 
 ## Badges
 
@@ -6,9 +6,9 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
-## What is Safe Send Pro?
+## What is Safe Send?
 
-Safe Send Pro is a VS Code extension that helps prevent accidental leakage of sensitive data when copying code or text to AI tools. It scans selected content (or full file content), detects risky patterns, and offers safe sanitization before clipboard export.
+Safe Send is a VS Code extension that helps prevent accidental leakage of sensitive data when copying code or text to AI tools. It scans selected content (or full file content), detects risky patterns, and offers safe sanitization before clipboard export.
 
 ## Features
 
@@ -18,6 +18,34 @@ Safe Send Pro is a VS Code extension that helps prevent accidental leakage of se
 - 📋 Monitors clipboard changes with Clipboard Event Manager V2
 - ⚠️ Shows actionable warnings with sanitize/allow/ignore flows
 - 🧪 Includes unit tests for detectors, sanitizer, risk engine, and event manager
+
+## Usage
+
+### Command: Safe Send: Scan & Copy for AI
+
+1. Open a file in VS Code
+2. Select text (or leave unselected to copy entire file)
+3. Run the command:
+   - **Windows/Linux**: `Ctrl+Shift+P` → "Safe Send: Scan & Copy for AI"
+   - **macOS**: `Cmd+Shift+P` → "Safe Send: Scan & Copy for AI"
+
+### Scan Results
+
+- **No sensitive data found**: Text is copied directly to clipboard
+- **Sensitive data detected**: A warning dialog shows detected types with options:
+  - **Sanitize & Copy**: Replaces sensitive values with placeholders, then copies
+  - **Copy Anyway**: Copies original text (with warning)
+  - **Cancel**: Does nothing
+
+### Automatic Clipboard Monitoring (Enabled by default)
+
+The extension monitors clipboard changes in the background. When risky content is detected:
+
+- **LOW risk**: No warning (e.g., single email or IP address)
+- **MEDIUM/HIGH risk**: Warning dialog with options:
+  - **Sanitize Clipboard**: Replace sensitive values automatically
+  - **Allow Copy**: Keep the content as-is
+  - **Ignore for this file**: Don't warn again for this file path
 
 ## Detected Patterns
 
@@ -33,77 +61,39 @@ Safe Send Pro is a VS Code extension that helps prevent accidental leakage of se
 | Email | `dev@example.com` | `<EMAIL>` |
 | Hardcoded secret | `password = "supersecret"` | `<SECRET>` |
 
-## Risk Engine V2
-
-Risk Engine V2 computes a `0-100` risk score and maps it to:
-
-- `LOW`: `< 30`
-- `MEDIUM`: `30-59`
-- `HIGH`: `>= 60`
-
-### Base scoring per finding type
-
-- Critical key patterns (OpenAI, Anthropic, GitHub token, AWS, Private key block): `40`
-- JWT token: `25`
-- Hardcoded secret: `35`
-- IP address: `15`
-- Email: `10`
-
-### Bonuses and path modifiers
-
-- `+20` when 2 or more finding types are present
-- `+15` when more than 3 finding types are present
-- `-10` when file path ends with `.env`
-- `+10` when file path ends with `README.md`
-- `-15` when path includes `/test/`
-- Final score is clamped to `0-100`
-
-## Clipboard Event Manager V2
-
-Clipboard Event Manager V2 uses a `200ms` polling loop to inspect clipboard updates. It:
-
-1. Skips internally-suppressed clipboard writes to avoid warning loops
-2. Avoids duplicate prompts for unchanged clipboard text
-3. Optionally ignores warnings per active file
-4. Triggers warning flow only for MEDIUM/HIGH risk
-
 ## Commands
 
-- `Safe Send: Scan & Copy for AI`
+| Command | Description |
+| --- | --- |
+| `Safe Send: Scan & Copy for AI` | Scans selected text or entire file for sensitive data, then copies (with optional sanitization) |
 
-## Setup / Scripts
+## Setup / Development
 
-```bash
-pnpm install
-pnpm run compile
-pnpm run build
-pnpm run package
-pnpm run prepublish
-pnpm run lint
-pnpm run format
-pnpm test
-```
+### Prerequisites
 
-## Folder Structure
+- Node.js >= 24.0.0
+- pnpm (recommended) or npm
+- VS Code >= 1.116.0
 
-```text
-safe-send-to-ai/
-├── .gitignore
-├── .vscodeignore
-├── biome.json
-├── icon.png
-├── LICENSE
-├── package.json
-├── README.md
-├── tsconfig.json
-└── src/
-    ├── eventManager.test.ts
-    ├── eventManager.ts
-    ├── extension.ts
-    ├── riskEngine.test.ts
-    ├── riskEngine.ts
-    ├── sanitizer.test.ts
-    ├── sanitizer.ts
-    ├── sensitive.test.ts
-    └── sensitive.ts
-```
+### Available Scripts
+
+| Script | Description |
+| --- | --- |
+| `pnpm run compile` | Compile TypeScript to JavaScript |
+| `pnpm run package` | Package extension as `.vsix` file |
+| `pnpm run lint` | Run Biome linter |
+| `pnpm run format` | Format code with Biome |
+| `pnpm test` | Run tests (compile + execute) |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Support
+
+- Report issues: [GitHub Issues](https://github.com/chaluvadis/safe-send-to-ai/issues)
+- Discussions: [GitHub Discussions](https://github.com/chaluvadis/safe-send-to-ai/discussions)

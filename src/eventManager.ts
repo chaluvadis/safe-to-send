@@ -38,7 +38,7 @@ export function registerEventManager(context: vscode.ExtensionContext): void {
       }
 
       const choice = await vscode.window.showWarningMessage(
-        `⚠️ Safe Send Pro: Risk ${result.score}/100 (${result.level}) — ${result.findings.join(", ")}`,
+        `⚠️ Safe Send: Risk ${result.score}/100 (${result.level}) — ${result.findings.join(", ")}`,
         "Sanitize Clipboard",
         "Allow Copy",
         "Ignore for this file",
@@ -49,7 +49,7 @@ export function registerEventManager(context: vscode.ExtensionContext): void {
         suppressNextClipboardEvent();
         await vscode.env.clipboard.writeText(sanitized);
         lastClipboard = sanitized;
-        await vscode.window.showInformationMessage("Clipboard sanitized by Safe Send Pro");
+        await vscode.window.showInformationMessage("Clipboard sanitized by Safe Send");
         return;
       }
 

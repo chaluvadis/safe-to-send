@@ -1,0 +1,1143 @@
+# Sample Test Data for Safe Send Extension
+
+**Purpose:** Collection of test data samples to verify all extension features, detection patterns, and edge cases.
+**Version:** 1.0  
+**Last Updated:** 2026-04-25
+
+---
+
+## Table of Contents
+
+1. [OpenAI API Keys](#1-openai-api-keys)
+2. [Anthropic API Keys](#2-anthropic-api-keys)
+3. [GitHub Tokens](#3-github-tokens)
+4. [AWS Keys](#4-aws-keys)
+5. [JWT Tokens](#5-jwt-tokens)
+6. [Private Key Blocks](#6-private-key-blocks)
+7. [IP Addresses](#7-ip-addresses)
+8. [Email Addresses](#8-email-addresses)
+9. [Hardcoded Secrets](#9-hardcoded-secrets)
+10. [Mixed/Multiple Secrets](#10-mixedmultiple-secrets)
+11. [False Positives (Should NOT Detect)](#11-false-positives-should-not-detect)
+12. [Path-Based Context Tests](#12-path-based-context-tests)
+13. [Edge Cases & Special Characters](#13-edge-cases--special-characters)
+14. [Large Input Tests](#14-large-input-tests)
+
+---
+
+## 1. OpenAI API Keys
+
+### Description
+Should detect `sk-` prefixed keys (20+ alphanumeric chars).  
+**Risk Score:** 40 (raised to 60 due to critical key rule → HIGH)
+
+### Test Samples
+
+#### SD-01: Basic OpenAI Key
+```text
+sk-12345678901234567890
+```
+**Expected:** Detected as "OpenAI API key"  
+**Sanitized:** `<API_KEY>`  
+**Risk Score:** 60 (HIGH)
+
+#### SD-02: In Python Code
+```python
+import openai
+openai.api_key = "sk-abcdefghijklmnopqrstuvwx"
+```
+**Expected:** Detected as "OpenAI API key"  
+**Sanitized:** `openai.api_key = "<API_KEY>"`  
+**Risk Level:** HIGH
+
+#### SD-03: In JavaScript
+```javascript
+const configuration = {
+  apiKey: "sk-12345678901234567890",
+  baseURL: "https://api.openai.com/v1"
+};
+```
+**Expected:** Detected as "OpenAI API key"  
+**Sanitized:** `apiKey: "<API_KEY>"`
+
+#### SD-04: Multiple OpenAI Keys
+```python
+PRIMARY_KEY = "sk-12345678901234567890"
+SECONDARY_KEY = "sk-abcdefghijklmnopqrst"
+```
+**Expected:** 2 × "OpenAI API key" detected  
+**Sanitized:** Both replaced with `<API_KEY>`
+
+#### SD-05: In .env Format
+```ini
+OPENAI_API_KEY=sk-12345678901234567890
+OPENAI_ORG=org-abc123
+```
+**Expected:** Detected as "OpenAI API key"  
+**Sanitized:** `OPENAI_API_KEY=<API_KEY>`
+
+#### SD-06: Short Key (Negative Control)
+```text
+sk-short
+```
+**Expected:** NOT detected (too short)  
+**Sanitized:** Unchanged  
+**Risk:** None
+
+#### SD-07: Uppercase Key (Negative Control)
+```text
+SK-12345678901234567890
+```
+**Expected:** NOT detected (uppercase, regex is case-sensitive)  
+**Sanitized:** Unchanged
+
+---
+
+## 2. Anthropic API Keys
+
+### Description
+Should detect `sk-ant-` prefixed keys (20+ alphanumeric chars).  
+**Risk Score:** Not explicitly scored in current engine (but detected)
+
+### Test Samples
+
+#### AN-01: Basic Anthropic Key
+```text
+sk-ant-12345678901234567890
+```
+**Expected:** Detected as "Anthropic API key"  
+**Sanitized:** `<ANTHROPIC_API_KEY>`
+
+#### AN-02: In TypeScript
+```typescript
+const anthropic = new Anthropic({
+  apiKey: "sk-ant-abcdefghijklmnopqrst",
+});
+```
+**Expected:** Detected as "Anthropic API key"  
+**Sanitized:** `apiKey: "<ANTHROPIC_API_KEY>"`
+
+#### AN-03: Multiple Keys
+```python
+ANTHROPIC_KEY_1 = "sk-ant-12345678901234567890"
+ANTHROPIC_KEY_2 = "sk-ant-abcdefghijklmnopqrst"
+```
+**Expected:** 2 × "Anthropic API key" detected
+
+#### AN-04: In JSON Config
+```json
+{
+  "anthropic_api_key": "sk-ant-12345678901234567890",
+  "model": "claude-3-opus-20240229"
+}
+```
+**Expected:** Detected as "Anthropic API key"
+
+#### AN-05: Short Key (Negative)
+```text
+sk-ant-short
+```
+**Expected:** NOT detected
+
+---
+
+## 3. GitHub Tokens
+
+### Description
+Should detect `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` prefixed tokens (36+ alphanumeric chars).  
+**Risk Score:** Not explicitly scored
+
+### Test Samples
+
+#### GH-01: Standard Token (ghp)
+```text
+ghp_123456789012345678901234567890123456
+```
+**Expected:** Detected as "GitHub token"  
+**Sanitized:** `<GITHUB_TOKEN>`
+
+#### GH-02: Fine-Grained Token (gho)
+```text
+gho_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef12
+```
+**Expected:** Detected as "GitHub token"  
+**Sanitized:** `<GITHUB_TOKEN>`
+
+#### GH-03: User Token (ghu)
+```text
+ghu_123456789012345678901234567890123456
+```
+**Expected:** Detected as "GitHub token"
+
+#### GH-04: In Shell Script
+```bash
+export GITHUB_TOKEN="ghp_123456789012345678901234567890123456"
+curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user
+```
+**Expected:** Detected as "GitHub token"  
+**Sanitized:** `GITHUB_TOKEN="<GITHUB_TOKEN>"`
+
+#### GH-05: Multiple Token Types
+```python
+GITHUB_PERSONAL = "ghp_123456789012345678901234567890123456"
+GITHUB_FINE_GRAINED = "gho_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef12"
+```
+**Expected:** 2 × "GitHub token" detected
+
+#### GH-06: Short Token (Negative)
+```text
+ghp_short
+```
+**Expected:** NOT detected
+
+#### GH-07: In Python Code
+```python
+import requests
+headers = {
+    "Authorization": "token ghp_123456789012345678901234567890123456"
+}
+response = requests.get("https://api.github.com/user", headers=headers)
+```
+**Expected:** Detected as "GitHub token"
+
+---
+
+## 4. AWS Keys
+
+### Description
+Should detect `AKIA` prefixed keys (20 chars).  
+**Risk Score:** 40 (raised to 60 due to critical key rule → HIGH)
+
+### Test Samples
+
+#### AWS-01: Standard AWS Key
+```text
+AKIAABCDEFGHIJKLMNOP
+```
+**Expected:** Detected as "AWS key"  
+**Sanitized:** `<AWS_KEY>`  
+**Risk Level:** HIGH
+
+#### AWS-02: In AWS Config
+```ini
+[default]
+aws_access_key_id = AKIAABCDEFGHIJKLMNOP
+aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+region = us-east-1
+```
+**Expected:** Detected as "AWS key"  
+**Sanitized:** `aws_access_key_id = <AWS_KEY>`
+
+#### AWS-03: In Python Boto3
+```python
+import boto3
+
+client = boto3.client(
+    's3',
+    aws_access_key_id='AKIAABCDEFGHIJKLMNOP',
+    aws_secret_access_key='wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY'
+)
+```
+**Expected:** Detected as "AWS key"  
+**Sanitized:** `aws_access_key_id='<AWS_KEY>'`
+
+#### AWS-04: Short Key (Negative)
+```text
+AKIA
+```
+**Expected:** NOT detected (too short)
+
+#### AWS-05: Invalid Prefix (Negative)
+```text
+AKIBABCDEFGHIJKLMNOP
+```
+**Expected:** NOT detected (must be AKIA)
+
+#### AWS-06: Multiple Keys
+```json
+{
+  "dev_key": "AKIAABCDEFGHIJKLMNOP",
+  "prod_key": "AKIAPQRSTUVWXYZ123456"
+}
+```
+**Expected:** 2 × "AWS key" detected
+
+---
+
+## 5. JWT Tokens
+
+### Description
+Should detect JWT pattern (3 base64url segments separated by dots).  
+**Risk Score:** 25 (LOW)
+
+### Test Samples
+
+#### JWT-01: Standard JWT
+```text
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+```
+**Expected:** Detected as "JWT token"  
+**Sanitized:** `<JWT_TOKEN>`
+
+#### JWT-02: Shorter JWT
+```text
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def
+```
+**Expected:** Detected as "JWT token"
+
+#### JWT-03: In Authorization Header
+```http
+GET /api/user HTTP/1.1
+Host: api.example.com
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def
+```
+**Expected:** Detected as "JWT token"
+
+#### JWT-04: In JavaScript
+```javascript
+const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def";
+localStorage.setItem("auth_token", token);
+```
+**Expected:** Detected as "JWT token"
+
+#### JWT-05: Multiple JWTs
+```text
+Token1: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def
+Token2: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.xyz.uvw
+```
+**Expected:** 2 × "JWT token" detected
+
+#### JWT-06: Not a JWT (Negative)
+```text
+abc.def.ghi
+```
+**Expected:** NOT detected (not valid base64url)
+
+---
+
+## 6. Private Key Blocks
+
+### Description
+Should detect private key block headers.  
+**Risk Score:** Not explicitly scored (but HIGH risk)
+
+### Test Samples
+
+#### PK-01: RSA Private Key
+```text
+-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEA1234567890abcdef...
+-----END RSA PRIVATE KEY-----
+```
+**Expected:** Detected as "Private key block"  
+**Sanitized:** `<PRIVATE_KEY_BLOCK>`
+
+#### PK-02: EC Private Key
+```text
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIPEqKfF5GgBz...  
+-----END EC PRIVATE KEY-----
+```
+**Expected:** Detected as "Private key block"
+
+#### PK-03: OpenSSH Private Key
+```text
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
+NhAAAAAwEAAQAAAYE...
+-----END OPENSSH PRIVATE KEY-----
+```
+**Expected:** Detected as "Private key block"
+
+#### PK-04: Generic Private Key
+```text
+-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7VJTUt9Us8cKj
+...
+-----END PRIVATE KEY-----
+```
+**Expected:** Detected as "Private key block"
+
+#### PK-05: In Shell Script
+```bash
+cat > server.key << 'EOF'
+-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7VJTUt9Us8cKj
+...
+-----END PRIVATE KEY-----
+EOF
+```
+**Expected:** Detected as "Private key block"
+
+#### PK-06: Partial Match Only
+```text
+-----BEGIN PRIVATE KEY-----
+```
+**Expected:** Detected as "Private key block" (header alone is enough)
+
+#### PK-07: Not a Private Key (Negative)
+```text
+-----BEGIN CERTIFICATE-----
+MIIDXTCCAkWgAwIBAgIJAK9...
+-----END CERTIFICATE-----
+```
+**Expected:** NOT detected (must be PRIVATE KEY)
+
+---
+
+## 7. IP Addresses
+
+### Description
+Should detect IPv4 addresses.  
+**Risk Score:** 15 (LOW)
+
+### Test Samples
+
+#### IP-01: Standard Private IP
+```text
+192.168.1.1
+```
+**Expected:** Detected as "IP address"  
+**Sanitized:** `<IP_ADDRESS>`
+
+#### IP-02: Localhost
+```text
+127.0.0.1
+```
+**Expected:** Detected as "IP address"
+
+#### IP-03: Class A
+```text
+10.0.0.1
+```
+**Expected:** Detected as "IP address"
+
+#### IP-04: Class B
+```text
+172.16.0.1
+```
+**Expected:** Detected as "IP address"
+
+#### IP-05: Broadcast
+```text
+255.255.255.255
+```
+**Expected:** Detected as "IP address"
+
+#### IP-06: In URL
+```text
+http://192.168.1.1:8080/api/v1/users
+```
+**Expected:** Detected as "IP address"  
+**Sanitized:** `http://<IP_ADDRESS>:8080/api/v1/users`
+
+#### IP-07: In Configuration
+```ini
+database_host=192.168.1.100
+database_port=5432
+```
+**Expected:** Detected as "IP address"
+
+#### IP-08: Multiple IPs
+```text
+Server 1: 192.168.1.1
+Server 2: 10.0.0.1
+Gateway: 172.16.0.1
+```
+**Expected:** 3 × "IP address" detected
+
+#### IP-09: Invalid (Too High) - Negative
+```text
+999.999.999.999
+```
+**Expected:** NOT detected (invalid IP)
+
+#### IP-10: Invalid (Short) - Negative
+```text
+1.2.3
+```
+**Expected:** NOT detected (not 4 octets)
+
+---
+
+## 8. Email Addresses
+
+### Description
+Should detect valid email addresses.  
+**Risk Score:** 10 (LOW)
+
+### Test Samples
+
+#### EM-01: Standard Email
+```text
+dev@example.com
+```
+**Expected:** Detected as "Email"  
+**Sanitized:** `<EMAIL>`
+
+#### EM-02: Complex Email
+```text
+user.name+tag@sub.domain.co.uk
+```
+**Expected:** Detected as "Email"  
+**Sanitized:** `<EMAIL>`
+
+#### EM-03: Multiple Emails
+```text
+a@b.com, c@d.org, e@f.net
+```
+**Expected:** 3 × "Email" detected (may show as 1 finding)
+
+#### EM-04: In Code
+```python
+EMAIL = "admin@company.com"
+SUPPORT_EMAIL = "support@company.com"
+```
+**Expected:** 2 × "Email" detected
+
+#### EM-05: In JSON
+```json
+{
+  "contact": "info@example.com",
+  "support": "help@service.org"
+}
+```
+**Expected:** 2 × "Email" detected
+
+#### EM-06: Not an Email - No Domain - Negative
+```text
+user@
+```
+**Expected:** NOT detected (invalid)
+
+#### EM-07: Not an Email - Localhost - Negative
+```text
+user@localhost
+```
+**Expected:** NOT detected (no TLD)
+
+#### EM-08: Email in Markdown
+```markdown
+Contact us at support@example.com for help.
+```
+**Expected:** Detected as "Email"
+
+---
+
+## 9. Hardcoded Secrets
+
+### Description
+Should detect `password`, `secret`, `api_key` assignments with quoted values.  
+**Risk Score:** 35 (MEDIUM)
+
+### Test Samples
+
+#### HS-01: Password with Double Quotes
+```python
+password = "supersecret123"
+```
+**Expected:** Detected as "Hardcoded secret"  
+**Sanitized:** `password = "<SECRET>"`  
+**Risk Level:** MEDIUM
+
+#### HS-02: Secret with Single Quotes
+```python
+secret = 'my-secret-value'
+```
+**Expected:** Detected as "Hardcoded secret"  
+**Sanitized:** `secret = '<SECRET>'`
+
+#### HS-03: api_key Variant
+```python
+api_key = "abc123xyz789"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### HS-04: No Spaces
+```python
+password="nospaceshere"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### HS-05: With Spaces
+```python
+password = "with spaces here"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### HS-06: Multiple Secrets
+```python
+password = "pass123"
+secret = "secret456"
+api_key = "key789"
+```
+**Expected:** 1 × "Hardcoded secret" finding (all of same type)
+
+#### HS-07: Special Characters in Secret
+```python
+password = "p@ssw0rd!#$%^&*()"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### HS-08: Secret with Quotes Inside
+```python
+password = "a'b'c"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### HS-09: Escaped Quotes
+```python
+secret = "a\"b"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### HS-10: In Configuration File
+```ini
+[database]
+password = "db_secret_123"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### HS-11: In Shell Script
+```bash
+export API_SECRET="secret123"
+```
+**Expected:** NOT detected (different pattern, not `api_key=`)
+
+#### HS-12: Function Name - Negative
+```python
+def password_reset():
+    pass
+```
+**Expected:** NOT detected (not an assignment)
+
+#### HS-13: Variable Name - Negative
+```python
+check_password = True
+```
+**Expected:** NOT detected (no quoted value)
+
+---
+
+## 10. Mixed/Multiple Secrets
+
+### Description
+Combinations of different secret types to test multiple findings and bonuses.
+
+### Test Samples
+
+#### MIX-01: Two Types (Bonus Applied)
+```python
+api_key = "sk-12345678901234567890"
+email = "admin@example.com"
+```
+**Expected:** 2 findings (OpenAI API key, Email)  
+**Risk Score:** 70 (40 + 10 + 20 bonus → HIGH)
+
+#### MIX-02: Three Types (Bonus Applied)
+```text
+AKIAABCDEFGHIJKLMNOP
+password = "secret123"
+user@example.com
+```
+**Expected:** 3 findings (AWS key, Hardcoded secret, Email)  
+**Risk Score:** 105 (40 + 35 + 10 + 20 bonus → clamped to 100 HIGH)
+
+#### MIX-03: Four Types (Both Bonuses)
+```text
+sk-12345678901234567890
+AKIAABCDEFGHIJKLMNOP
+password = "secret"
+192.168.1.1
+```
+**Expected:** 4 findings  
+**Risk Score:** 115 (40+40+35+15 +20 ≥2 +15 >3 → clamped to 100 HIGH)
+
+#### MIX-04: All Types
+```text
+sk-12345678901234567890
+sk-ant-abcdefghijklmnopqrst
+ghp_123456789012345678901234567890123456
+AKIAABCDEFGHIJKLMNOP
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def
+-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7...
+-----END PRIVATE KEY-----
+192.168.1.1
+admin@example.com
+password = "super-secret"
+```
+**Expected:** 9 findings (all types)  
+**Risk Score:** 100 (maximum, clamped) HIGH
+
+#### MIX-05: Clean + Secrets
+```python
+import sys
+import os
+
+# Configuration
+API_KEY = "sk-12345678901234567890"
+
+def main():
+    print("Starting application")
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+**Expected:** 1 finding (OpenAI API key)  
+**Risk Score:** 60 HIGH  
+**Sanitized:** Only the key replaced
+
+#### MIX-06: Secrets in Comments
+```javascript
+// TODO: Change this key: sk-12345678901234567890
+/* Password for testing: password = "test123" */
+const public = "this is safe";
+```
+**Expected:** 2 findings (OpenAI API key, Hardcoded secret)  
+**Sanitized:** Secrets in comments replaced
+
+---
+
+## 11. False Positives (Should NOT Detect)
+
+### Description
+Test cases that should NOT trigger detection.
+
+### Test Samples
+
+#### FP-01: Short Key Fragment
+```text
+sk-
+```
+**Expected:** NOT detected (incomplete)
+
+#### FP-02: Partial AWS Key
+```text
+AKIA
+```
+**Expected:** NOT detected (too short)
+
+#### FP-03: GitHub Token Prefix Only
+```text
+ghp_
+```
+**Expected:** NOT detected (too short)
+
+#### FP-04: Short Anthropic Key
+```text
+sk-ant-short
+```
+**Expected:** NOT detected (too short)
+
+#### FP-05: Invalid Email
+```text
+user@
+```
+**Expected:** NOT detected (invalid format)
+
+#### FP-06: localhost Email
+```text
+admin@localhost
+```
+**Expected:** NOT detected (no TLD)
+
+#### FP-07: Not a Secret Variable
+```python
+check_password = True
+password_reset()
+api_key_exists = False
+```
+**Expected:** NOT detected (no quoted value assignment)
+
+#### FP-08: Function Call
+```python
+set_password(user, "newpass")
+```
+**Expected:** NOT detected (function argument, not assignment)
+
+#### FP-09: Dictionary Key
+```python
+config = {"api_key": "value"}
+```
+**Expected:** NOT detected (key, not assignment pattern)
+
+#### FP-10: Class Attribute
+```python
+class Config:
+    api_key = "value"
+```
+**Expected:** Detected (still an assignment!)  
+*Note: This actually SHOULD detect*
+
+#### FP-11: URL with Similar Pattern
+```text
+https://api.example.com/sk/endpoint
+```
+**Expected:** NOT detected (part of URL path)
+
+#### FP-12: Base64-looking but Not Key
+```text
+ZW5jb2RlZCBzdHJpbmc=
+```
+**Expected:** NOT detected (doesn't match key pattern)
+
+#### FP-13: Hex String
+```text
+a1b2c3d4e5f67890
+```
+**Expected:** NOT detected (no prefix)
+
+#### FP-14: Token in Different Context
+```python
+# The word sk- appears here but is not a key
+prefix = "sk-"  # Just a string
+```
+**Expected:** NOT detected (fragment in comment/string)
+
+#### FP-15: Invalid JWT
+```text
+abc.def.ghi
+```
+**Expected:** NOT detected (not valid base64url)
+
+---
+
+## 12. Path-Based Context Tests
+
+### Description
+Test files in different paths to verify context modifiers.
+
+### Test Samples
+
+#### CTX-01: .env File (Score -10)
+```ini
+# .env file
+DATABASE_URL=postgres://user:pass@localhost/db
+SECRET_KEY=abc123xyz
+API_KEY=sk-12345678901234567890
+```
+**Expected Risk:** Hardcoded secret: 35-10=25 (LOW)  
+**Expected Risk:** OpenAI key: 60-10=50 (MEDIUM)
+
+#### CTX-02: README.md (Score +10)
+```markdown
+# Project README
+
+Contact: admin@example.com
+
+For API access, see documentation.
+```
+**Expected Risk:** Email: 10+10=20 (LOW)
+
+#### CTX-03: /test/ Directory (Score -15)
+```typescript
+// test/fixtures.ts
+export const TEST_API_KEY = "sk-test123";
+export const TEST_PASSWORD = "fake-password";
+```
+**Expected Risk:** Hardcoded secret: 35-15=20 (LOW)
+
+#### CTX-04: Nested Test Path
+```python
+# tests/integration/test_api.py
+API_KEY = "sk-12345678901234567890"
+```
+**Expected Risk:** OpenAI key: 60-15=45 → raised to 60 (HIGH - critical key rule)
+
+#### CTX-05: Multiple Modifiers
+```ini
+# test/.env (both /test/ and .env)
+SECRET=abc123
+```
+**Expected Risk:** Hardcoded secret: 35-10-15=10 (LOW)
+
+#### CTX-06: Windows Path
+```text
+C:\Projects\.env
+SECRET_KEY=xyz789
+```
+**Expected Risk:** Hardcoded secret: 35-10=25 (LOW - normalized)
+
+#### CTX-07: src/ Directory (No Modifier)
+```javascript
+// src/config.js
+const API_KEY = "sk-12345678901234567890";
+```
+**Expected Risk:** OpenAI key: 60 (HIGH - no modifier)
+
+#### CTX-08: docs/ Directory (No Modifier)
+```markdown
+# docs/setup.md
+Email: support@example.com
+```
+**Expected Risk:** Email: 10 (LOW - no README.md)
+
+---
+
+## 13. Edge Cases & Special Characters
+
+### Description
+Unusual characters, escaped sequences, and boundary cases.
+
+### Test Samples
+
+#### EC-01: Secret with Special Characters
+```python
+password = "p@ssw0rd!#$%^&*()"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-02: Unicode in Secret
+```python
+secret = 'pässwörd_ünicode'
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-03: Quotes in Secret Value
+```python
+password = "a'b'c"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-04: Double Quotes in Secret
+```python
+secret = 'He said "hello"'
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-05: Escaped Double Quote
+```python
+password = "a\"b"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-06: Escaped Single Quote
+```python
+secret = 'It\'s a secret'
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-07: Backslash in Secret
+```python
+api_key = "key\\with\\backslashes"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-08: Newline in Secret (Theoretical)
+```python
+password = "line1\nline2"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-09: Tab in Secret
+```python
+secret = "key\tvalue"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-10: Very Long Secret (1000 chars)
+```python
+password = "a" * 1000
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-11: Empty Quotes
+```python
+password = ""
+```
+**Expected:** Detected as "Hardcoded secret" (still a pattern match)
+
+#### EC-12: Spaces Around Equals
+```python
+password    =    "secret"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-13: No Spaces (Negative Control)
+```python
+password="secret"
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-14: Triple Quotes (Python)
+```python
+password = """secret value"""
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### EC-15: Single Triple Quote
+```python
+secret = '''my-secret'''
+```
+**Expected:** Detected as "Hardcoded secret"
+
+---
+
+## 14. Large Input Tests
+
+### Description
+Performance tests with large content.
+
+### Test Samples
+
+#### LG-01: 10KB Clean Code
+```javascript
+// Generate 10KB of clean code
+const code = Array(200).fill(0).map((_, i) => 
+  `const variable${i} = ${i};\nconsole.log(variable${i});`
+).join('\n');
+```
+**Expected:** Fast processing (< 100ms), no detection
+
+#### LG-02: 100KB Clean Code
+```javascript
+// Generate 100KB of clean code
+const code = Array(2000).fill(0).map((_, i) => 
+  `function func${i}() { return ${i}; }\n`
+).join('\n');
+```
+**Expected:** Fast processing (< 500ms)
+
+#### LG-03: 10KB With Secrets
+```javascript
+const data = `
+sk-12345678901234567890
+AKIAABCDEFGHIJKLMNOP
+password = "secret"
+${Array(100).fill(0).map((_, i) => `const x${i} = ${i};`).join('\n')}
+`;
+```
+**Expected:** Secrets detected, < 100ms
+
+#### LG-04: 100KB With Many Secrets
+```javascript
+const lines = [];
+for (let i = 0; i < 20; i++) {
+  lines.push(`sk-${i.toString().padStart(20, '0')}`);
+  lines.push(`password = "secret${i}"`);
+  lines.push(`const clean${i} = ${i};`);
+}
+```
+**Expected:** All secrets detected, < 500ms
+
+#### LG-05: Single Type Repeated 100x
+```text
+sk-12345678901234567890
+sk-12345678901234567890
+sk-12345678901234567890
+...
+(sk-12345678901234567890 repeated 100 times)
+```
+**Expected:** All detected, replaced with `<API_KEY>`
+
+#### LG-06: Long Single Line (500 chars)
+```text
+password="verylongsecret"verylongsecret"verylongsecret"verylongsecret"verylongsecre...
+```
+**Expected:** Detected as "Hardcoded secret"
+
+#### LG-07: Many IP Addresses
+```text
+192.168.1.1
+10.0.0.1
+172.16.0.1
+...
+(100 different IPs)
+```
+**Expected:** All detected as "IP address"
+
+#### LG-08: Many Emails
+```text
+user1@example.com
+user2@example.com
+user3@example.com
+...
+(100 different emails)
+```
+**Expected:** All detected as "Email"
+
+---
+
+## Usage Instructions
+
+### How to Test Each Sample
+
+1. **Copy the sample code** into a new file in VS Code
+2. **Save the file** with appropriate extension (if relevant)
+3. **Run the command:** `Ctrl+Shift+P` → "Safe Send: Scan & Copy for AI"
+4. **Observe:**
+   - Does a warning appear? (Expected vs Actual)
+   - What risk level is shown?
+   - What risk score is displayed?
+   - What patterns are listed?
+5. **Test sanitization:**
+   - Choose "Sanitize & Copy"
+   - Paste elsewhere
+   - Verify placeholders replaced correctly
+6. **Verify clean text:**
+   - For negative controls, verify NO warning appears
+   - Text should copy without interruption
+
+### Testing Path-Based Modifiers
+
+1. Create files in different locations:
+   - `.env` in project root
+   - `README.md` in project root
+   - Files in `test/` directory
+2. Copy content from each
+3. Verify risk scores are adjusted correctly
+
+### Testing Automatic Monitoring
+
+1. Copy sample code **outside VS Code** (browser, notepad, etc.)
+2. Wait 1-2 seconds
+3. Observe if warning appears
+4. Test different risk levels (LOW should not warn)
+
+---
+
+## Expected Results Summary
+
+| Risk Level | Score Range | Warning? | Sample Trigger |
+|------------|-------------|----------|----------------|
+| **LOW** | 0-29 | ❌ No | Email, IP, JWT |
+| **MEDIUM** | 30-59 | ✅ Yes | Hardcoded secret |
+| **HIGH** | 60-100 | ✅ Yes | OpenAI key, AWS key, multiple |
+
+| Pattern | Detected? | Sanitized As |
+|---------|-----------|--------------|
+| OpenAI key | ✅ Yes | `<API_KEY>` |
+| Anthropic key | ✅ Yes | `<ANTHROPIC_API_KEY>` |
+| GitHub token | ✅ Yes | `<GITHUB_TOKEN>` |
+| AWS key | ✅ Yes | `<AWS_KEY>` |
+| JWT | ✅ Yes | `<JWT_TOKEN>` |
+| Private key | ✅ Yes | `<PRIVATE_KEY_BLOCK>` |
+| IP address | ✅ Yes | `<IP_ADDRESS>` |
+| Email | ✅ Yes | `<EMAIL>` |
+| Hardcoded secret | ✅ Yes | `<SECRET>` |
+
+---
+
+## Quick Reference
+
+**File:** `sample_test_data.md`  
+**Contains:** 100+ test cases across 14 categories  
+**Coverage:** All detection patterns, edge cases, performance tests  
+**Status:** Ready to use  
+
+**Fast Testing:**
+1. Open any sample in VS Code
+2. Run: "Safe Send: Scan & Copy for AI"
+3. Check results
+
+**Automated Testing:**
+```bash
+cd /home/surendra/Documents/safe-to-send
+pnpm test  # Runs all 50 unit tests
+```
+
+---
+
+*End of test data file*
