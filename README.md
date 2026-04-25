@@ -93,6 +93,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
 MIT License - see [LICENSE](LICENSE) for details.
 
+## Documentation
+
+Detailed documentation is available in the `docs/` folder:
+
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Complete system architecture, module design, data flows, and technical details
+- **[USER_TESTING_GUIDE.md](docs/USER_TESTING_GUIDE.md)** - Step-by-step manual testing instructions and scenarios
+- **[Test_Data.md](docs/Test_Data.md)** - Comprehensive test cases and sample data (1100+ test scenarios)
+
 ## Support
 
 - Report issues: [GitHub Issues](https://github.com/chaluvadis/safe-send-to-ai/issues)
