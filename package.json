@@ -1,43 +1,72 @@
 {
   "name": "safe-send",
-  "displayName": "Safe Send Pro",
+  "displayName": "Safe Send",
   "description": "Scan code for sensitive data before copying to AI tools.",
-  "version": "0.2.0",
+  "version": "0.0.1",
   "private": false,
   "license": "MIT",
   "repository": "https://github.com/chaluvadis/safe-send-to-ai",
-  "keywords": ["vscode", "security", "ai", "clipboard", "sensitive-data", "sanitize"],
-  "icon": "icon.png",
+  "keywords": [
+    "vscode",
+    "security",
+    "ai",
+    "clipboard",
+    "sensitive-data",
+    "sanitize"
+  ],
+  "icon": "assets/icon.png",
   "publisher": "chaluvadis",
   "engines": {
-    "vscode": "^1.90.0",
+    "vscode": "^1.116.0",
     "node": ">=24.0.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "main": "./dist/extension.js",
-  "activationEvents": ["onStartupFinished"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "contributes": {
     "commands": [
       {
         "command": "safeSend.scanAndCopyForAI",
         "title": "Safe Send: Scan & Copy for AI"
       }
-    ]
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "safeSend.scanAndCopyForAI",
+          "when": "editorTextFocus && editorHasSelection",
+          "group": "safe-send"
+        },
+        {
+          "command": "safeSend.scanAndCopyForAI",
+          "when": "editorTextFocus && !editorHasSelection",
+          "group": "safe-send"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "safeSend.scanAndCopyForAI",
+          "when": "editorTextFocus"
+        }
+      ]
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "build": "pnpm run compile",
-    "package": "vsce package",
-    "prepublish": "pnpm run compile",
+    "package": "vsce package --allow-package-all-secrets",
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "pnpm run compile && node --test \"dist/**/*.test.js\""
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.4.13",
     "@vscode/vsce": "latest",
-    "@types/node": "^24.0.0",
-    "@types/vscode": "^1.90.0",
-    "typescript": "^5.7.3"
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.116.0",
+    "typescript": "^6.0.3"
   }
 }
