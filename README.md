@@ -17,6 +17,7 @@ Safe Send is a VS Code extension that helps prevent accidental leakage of sensit
 - 🧠 Uses Risk Engine V2 scoring to classify LOW/MEDIUM/HIGH risk
 - 📋 Monitors clipboard changes with Clipboard Event Manager V2
 - ⚠️ Shows actionable warnings with sanitize/allow/ignore flows
+- 🔧 Supports **user-defined custom patterns** via VS Code settings or a per-repo `.safe-send.json` file
 - 🧪 Includes unit tests for detectors, sanitizer, risk engine, and event manager
 
 ## Usage
@@ -47,6 +48,8 @@ The extension monitors clipboard changes in the background. When risky content i
   - **Allow Copy**: Keep the content as-is
   - **Ignore for this file**: Don't warn again for this file path
 
+> **Note:** Clipboard content larger than 200 KB is skipped during background monitoring to keep VS Code responsive.
+
 ## Detected Patterns
 
 | Pattern Type | Example | Placeholder |
@@ -60,6 +63,78 @@ The extension monitors clipboard changes in the background. When risky content i
 | IP | `<IP_ADDRESS>` | `<IP_ADDRESS>` |
 | Email | `<EMAIL>` | `<EMAIL>` |
 | Hardcoded secret | `password = "<SECRET>"` | `<SECRET>` |
+
+## Custom Patterns
+
+You can define your own sensitive-data patterns in two ways.
+
+### Option A — VS Code Settings (`settings.json`)
+
+Add custom patterns to your User or Workspace settings:
+
+```json
+"safeSend.customPatterns": [
+  {
+    "id": "vendor_secret_key",
+    "label": "Vendor Secret Key",
+    "regex": "\\bVNDR_[0-9a-zA-Z]{24,}\\b",
+    "flags": "g",
+    "placeholder": "<VENDOR_KEY>",
+    "riskScore": 60,
+    "critical": true
+  },
+  {
+    "id": "internal_api_token",
+    "label": "Internal API Token",
+    "regex": "CORP_[A-Z0-9]{32}",
+    "placeholder": "<CORP_TOKEN>",
+    "riskScore": 45
+  }
+]
+```
+
+### Option B — Repository Config File (`.safe-send.json`)
+
+Place a `.safe-send.json` file in your workspace root and commit it alongside your code. This makes the policy version-controlled and shared across your team.
+
+```json
+{
+  "patterns": [
+    {
+      "id": "vendor_secret_key",
+      "label": "Vendor Secret Key",
+      "regex": "\\bVNDR_[0-9a-zA-Z]{24,}\\b",
+      "placeholder": "<VENDOR_KEY>",
+      "riskScore": 60,
+      "critical": true
+    }
+  ]
+}
+```
+
+> In a multi-root workspace, Safe Send prefers the `.safe-send.json` from the workspace folder that contains the active file. Patterns from all workspace folders are merged when no active file is present.
+
+### Pattern Definition Schema
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `id` | string | ✅ | — | Unique identifier for the pattern |
+| `label` | string | ✅ | — | Human-readable name shown in warnings |
+| `regex` | string | ✅ | — | JavaScript regex source (no surrounding `/`) |
+| `flags` | string | | `"g"` | Regex flags. The `g` (global) flag is always enforced |
+| `placeholder` | string | | `"<REDACTED>"` | Text used to replace matched values during sanitization |
+| `riskScore` | number | | `0` | Base risk contribution when this pattern matches (0–100) |
+| `critical` | boolean | | `false` | When `true`, escalates total risk score to at least 60 |
+| `enabled` | boolean | | `true` | Set to `false` to disable the pattern without removing it |
+
+> **Tip:** Patterns are limited to 50 custom entries. Patterns with an invalid regex are silently skipped and a single warning is shown in VS Code.
+
+### Controlling Repo Config Loading
+
+| Setting | Type | Default | Description |
+| --- | --- | --- | --- |
+| `safeSend.repoConfig.enabled` | boolean | `true` | Enable/disable loading `.safe-send.json` |
+| `safeSend.repoConfig.filename` | string | `".safe-send.json"` | Custom config filename |
 
 ## Commands
 
@@ -79,7 +154,8 @@ The extension monitors clipboard changes in the background. When risky content i
 
 | Script | Description |
 | --- | --- |
-| `pnpm run compile` | Compile TypeScript to JavaScript |
+| `pnpm run compile` | Compile TypeScript to JavaScript (extension only) |
+| `pnpm run compile:test` | Compile TypeScript including test files |
 | `pnpm run package` | Package extension as `.vsix` file |
 | `pnpm run lint` | Run Biome linter |
 | `pnpm run format` | Format code with Biome |

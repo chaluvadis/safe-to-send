@@ -1,5 +1,6 @@
 import assert = require("node:assert/strict");
 import test = require("node:test");
+
 import { sanitize } from "../src/sanitizer";
 
 test("sanitize replaces API key", () => {
@@ -65,10 +66,7 @@ test("sanitize replaces all mixed sensitive types in one string", () => {
   ].join(" ");
 
   const output = sanitize(input);
-  assert.equal(
-    output,
-    "<API_KEY> <AWS_KEY> <JWT_TOKEN> <IP_ADDRESS> <EMAIL> secret = \"<SECRET>\"",
-  );
+  assert.equal(output, '<API_KEY> <AWS_KEY> <JWT_TOKEN> <IP_ADDRESS> <EMAIL> secret = "<SECRET>"');
 });
 
 test("sanitize replaces all sensitive values in very long input", () => {

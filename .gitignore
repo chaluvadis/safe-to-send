@@ -140,3 +140,4 @@ vite.config.ts.timestamp-*
 .kilo
 
 *.vsix
+dist-test/
