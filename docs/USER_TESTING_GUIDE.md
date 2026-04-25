@@ -4,6 +4,10 @@
 
 This guide provides step-by-step instructions for testing the Safe Send extension in a real VS Code environment. Focus on user experience, behavior, and edge cases.
 
+**See Also:**
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture and design
+- [Test_Data.md](Test_Data.md) - Comprehensive test scenarios
+
 **Package File:** `safe-send-0.0.1.vsix`
 **Size:** 33.6 KB (23 files)
 

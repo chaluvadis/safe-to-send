@@ -1,6 +1,11 @@
 # Sample Test Data for Safe Send Extension
 
 **Purpose:** Collection of test data samples to verify all extension features, detection patterns, and edge cases.
+
+**See Also:**
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Technical architecture and component design
+- [USER_TESTING_GUIDE.md](USER_TESTING_GUIDE.md) - Manual testing instructions
+
 **Version:** 1.0  
 **Last Updated:** 2026-04-25
 
