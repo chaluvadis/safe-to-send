@@ -51,15 +51,15 @@ The extension monitors clipboard changes in the background. When risky content i
 
 | Pattern Type | Example | Placeholder |
 | --- | --- | --- |
-| OpenAI key | `sk-12345678901234567890` | `<API_KEY>` |
-| Anthropic key | `sk-ant-12345678901234567890` | `<ANTHROPIC_API_KEY>` |
-| GitHub token | `ghp_123456789012345678901234567890123456` | `<GITHUB_TOKEN>` |
-| AWS key | `AKIAABCDEFGHIJKLMNOP` | `<AWS_KEY>` |
-| JWT | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abc.def` | `<JWT_TOKEN>` |
-| Private key block | `-----BEGIN PRIVATE KEY-----` | `<PRIVATE_KEY_BLOCK>` |
-| IP | `192.168.1.1` | `<IP_ADDRESS>` |
-| Email | `dev@example.com` | `<EMAIL>` |
-| Hardcoded secret | `password = "supersecret"` | `<SECRET>` |
+| OpenAI key | `<API_KEY>` | `<API_KEY>` |
+| Anthropic key | `<ANTHROPIC_API_KEY>` | `<ANTHROPIC_API_KEY>` |
+| GitHub token | `<GITHUB_TOKEN>` | `<GITHUB_TOKEN>` |
+| AWS key | `<AWS_KEY>` | `<AWS_KEY>` |
+| JWT | `<JWT_TOKEN>` | `<JWT_TOKEN>` |
+| Private key block | `<PRIVATE_KEY_BLOCK>` | `<PRIVATE_KEY_BLOCK>` |
+| IP | `<IP_ADDRESS>` | `<IP_ADDRESS>` |
+| Email | `<EMAIL>` | `<EMAIL>` |
+| Hardcoded secret | `password = "<SECRET>"` | `<SECRET>` |
 
 ## Commands
 
