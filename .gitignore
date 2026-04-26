@@ -141,3 +141,8 @@ vite.config.ts.timestamp-*
 
 *.vsix
 dist-test/
+
+# Reports and generated documentation
+reports/
+*.log
+*.swp

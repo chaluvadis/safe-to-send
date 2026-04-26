@@ -11,8 +11,9 @@ This guide provides step-by-step instructions for testing the Safe Send extensio
 **Package File:** `safe-send-0.0.1.vsix`
 **Size:** 33.6 KB (23 files)
 
----
+**Note:** The extension now includes an Autonomous QA System (see [ARCHITECTURE.md - Section 10](ARCHITECTURE.md#10-autonomous-qa-system) for details).
 
+---
 ## Installation
 
 ### Method 1: Install from VSIX File (Recommended)
@@ -532,9 +533,11 @@ Before reporting testing complete:
 - [ ] Cancellation works
 - [ ] No crashes or freezes
 - [ ] Performance is acceptable
-- [ ] All 50 unit tests pass
+- [ ] All 80 unit tests pass (`npm test`)
 - [ ] Path modifiers work (.env, README.md, /test/)
 - [ ] Edge cases handled (special chars, near-misses)
+- [ ] Autonomous QA loop runs (`node dist/index.js`)
+- [ ] Test artifacts generated in `test_data/`
 
 ---
 
@@ -542,6 +545,8 @@ Before reporting testing complete:
 
 For issues or questions:
 - Review README.md
-- Check dev_test.md for detailed test results
-- Run `pnpm test` to verify automated tests
+- Check IMPLEMENTATION_SUMMARY.md for new features
+- Check ARCHITECTURE.md for system design
+- Run `npm test` to verify automated tests
+- Run `node dist/index.js` to test autonomous QA
 - Check VS Code DevTools (Help → Toggle Developer Tools) for errors

@@ -1,121 +1,145 @@
 import * as vscode from "vscode";
-import { registerEventManager, suppressNextClipboardEvent } from "./eventManager";
-import {
-  BUILT_IN_PATTERNS,
-  buildPatternList,
-  type CompiledPattern,
-  type PatternDefinition,
-} from "./patternRegistry";
+import { registerEventManager } from "./eventManager";
+import { BUILT_IN_PATTERNS, type CompiledPattern } from "./patternRegistry";
 import { loadRepoConfig } from "./repoConfig";
-import { detectSensitiveData, sanitizeSensitiveData } from "./sensitive";
+import { assessRisk } from "./riskEngine";
+import { sanitize } from "./sanitizer";
+import { detectSensitiveData } from "./sensitive";
 
-/** Loads all custom pattern definitions from VS Code settings and the repo config file. */
-function loadCustomPatternDefs(filePath?: string): PatternDefinition[] {
-  const config = vscode.workspace.getConfiguration("safeSend");
-  const settingsDefs: PatternDefinition[] = config.get<PatternDefinition[]>("customPatterns") ?? [];
+export function activate(context: vscode.ExtensionContext) {
+  console.log("Safe Send extension is now active!");
 
-  const repoEnabled: boolean = config.get<boolean>("repoConfig.enabled") ?? true;
-  const repoFilename: string = config.get<string>("repoConfig.filename") ?? ".safe-send.json";
+  // Register the main command
+  const disposable = vscode.commands.registerCommand("safeSend.scanAndCopyForAI", async () => {
+    await handleScanAndCopy(context);
+  });
 
-  const repoDefs: PatternDefinition[] = [];
-  if (repoEnabled) {
-    const folders = vscode.workspace.workspaceFolders;
-    if (folders && folders.length > 0) {
-      if (filePath) {
-        const normalizedFile = filePath.replaceAll("\\", "/");
-        const matchingFolder = folders.find((f) =>
-          normalizedFile.startsWith(f.uri.fsPath.replaceAll("\\", "/")),
-        );
-        if (matchingFolder) {
-          repoDefs.push(...loadRepoConfig(matchingFolder.uri.fsPath, repoFilename));
-        } else {
-          for (const folder of folders) {
-            repoDefs.push(...loadRepoConfig(folder.uri.fsPath, repoFilename));
-          }
-        }
-      } else {
-        for (const folder of folders) {
-          repoDefs.push(...loadRepoConfig(folder.uri.fsPath, repoFilename));
-        }
-      }
-    }
-  }
+  context.subscriptions.push(disposable);
 
-  return [...repoDefs, ...settingsDefs];
+  // Set up clipboard monitoring
+  registerEventManager(context);
+
+  console.log("Safe Send: All components initialized");
 }
 
-/** Builds the active pattern list for a given file path. */
-function getPatterns(filePath?: string): CompiledPattern[] {
-  try {
-    const customDefs = loadCustomPatternDefs(filePath);
-    return buildPatternList(customDefs);
-  } catch {
-    // Fall back to built-ins so detection still works even if config loading fails.
-    return Array.from(BUILT_IN_PATTERNS);
-  }
+export function deactivate() {
+  console.log("Safe Send extension deactivated");
 }
 
-/**
- * Executes the Safe Send scan and copy command.
- * Can be invoked from command palette or context menu.
- */
-async function executeScanAndCopyForAI(): Promise<void> {
+async function handleScanAndCopy(context: vscode.ExtensionContext) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
-    await vscode.window.showInformationMessage("No active editor found");
+    vscode.window.showWarningMessage("No active editor found");
     return;
   }
 
-  const text = editor.selection.isEmpty
-    ? editor.document.getText()
-    : editor.document.getText(editor.selection);
+  try {
+    // Get the selected text or entire document
+    const document = editor.document;
+    const selection = editor.selection;
+    const text = selection.isEmpty ? document.getText() : document.getText(selection);
 
-  if (!text) {
-    await vscode.window.showInformationMessage("No text available to scan");
-    return;
-  }
+    if (!text || text.trim().length === 0) {
+      vscode.window.showWarningMessage("No text to scan");
+      return;
+    }
 
-  const filePath = editor.document.fileName;
-  const patterns = getPatterns(filePath);
-  const detectedTypes = detectSensitiveData(text, patterns);
+    // Check file size limit (200KB)
+    if (Buffer.byteLength(text, "utf8") > 200 * 1024) {
+      vscode.window.showWarningMessage("File too large for scanning (max 200KB)");
+      return;
+    }
 
-  if (detectedTypes.length === 0) {
-    suppressNextClipboardEvent();
-    await vscode.env.clipboard.writeText(text);
-    await vscode.window.showInformationMessage("No sensitive data detected");
-    return;
-  }
+    // Analyze the text
+    const customPatternDefs = loadRepoConfig(
+      vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath || "",
+    );
 
-  const choice = await vscode.window.showWarningMessage(
-    `Sensitive data detected: ${detectedTypes.join(", ")}`,
-    "Sanitize & Copy",
-    "Copy Anyway",
-    "Cancel",
-  );
+    // Compile custom patterns
+    const { compilePattern } = await import("./patternRegistry");
+    const customPatterns = customPatternDefs
+      .map((def) => compilePattern(def))
+      .filter((p): p is CompiledPattern => p !== null);
 
-  if (choice === "Sanitize & Copy") {
-    suppressNextClipboardEvent();
-    await vscode.env.clipboard.writeText(sanitizeSensitiveData(text, patterns));
-    await vscode.window.showInformationMessage("Sanitized text copied to clipboard");
-    return;
-  }
+    const allPatterns = [...BUILT_IN_PATTERNS, ...customPatterns];
+    const detected = detectSensitiveData(text, allPatterns);
+    const riskResult = assessRisk(text, document.fileName, allPatterns);
+    const riskScore = riskResult.score;
 
-  if (choice === "Copy Anyway") {
-    suppressNextClipboardEvent();
-    await vscode.env.clipboard.writeText(text);
-    await vscode.window.showWarningMessage("Original text copied to clipboard");
+    let action = "copy-raw";
+
+    if (detected.length > 0) {
+      action = await showSanitizationDialog(detected, riskScore);
+    }
+
+    // Process based on user choice
+    switch (action) {
+      case "copy-sanitized": {
+        const sanitized = sanitize(text, allPatterns);
+        await copyToClipboard(sanitized);
+        vscode.window.showInformationMessage(
+          `Text copied safely (${detected.length} items sanitized)`,
+        );
+        break;
+      }
+
+      case "copy-raw":
+        await copyToClipboard(text);
+        if (detected.length > 0) {
+          const riskLevel =
+            riskScore >= 60 ? "HIGH RISK " : riskScore >= 30 ? "MEDIUM RISK ⚠️" : "LOW RISK ℹ️";
+          vscode.window.showWarningMessage(`Copied with sensitive data (${riskLevel})`);
+        }
+        break;
+
+      case "cancel":
+        // Do nothing
+        break;
+    }
+  } catch (error) {
+    console.error("Error in scanAndCopy:", error);
+    vscode.window.showErrorMessage("Safe Send: An error occurred during scanning");
   }
 }
 
-export function activate(context: vscode.ExtensionContext): void {
-  // Register command for command palette and context menu
-  const command = vscode.commands.registerCommand(
-    "safeSend.scanAndCopyForAI",
-    executeScanAndCopyForAI,
-  );
+async function showSanitizationDialog(
+  detected: any[],
+  riskScore: number,
+): Promise<"copy-sanitized" | "copy-raw" | "cancel"> {
+  const riskLevel =
+    riskScore >= 60 ? "HIGH RISK " : riskScore >= 30 ? "MEDIUM RISK ⚠️" : "LOW RISK ℹ️";
 
-  context.subscriptions.push(command);
-  registerEventManager(context);
+  const items = [
+    {
+      label: "Sanitize & Copy",
+      description: "Replace sensitive data with placeholders",
+      detail: `Detected ${detected.length} sensitive pattern(s) | ${riskLevel}`,
+      action: "copy-sanitized" as const,
+    },
+    {
+      label: "Copy Anyway",
+      description: "Copy original text with warning",
+      detail: "Bypass sanitization (not recommended)",
+      action: "copy-raw" as const,
+    },
+    {
+      label: "Cancel",
+      description: "Do not copy",
+      detail: "Close this dialog",
+      action: "cancel" as const,
+    },
+  ];
+
+  const pick = await vscode.window.showQuickPick(items, {
+    title: "Safe Send - Sensitive Data Detected",
+    placeHolder: "Choose how to handle the sensitive data",
+    matchOnDescription: true,
+    matchOnDetail: true,
+  });
+
+  return pick ? pick.action : "cancel";
 }
 
-export function deactivate(): void {}
+async function copyToClipboard(text: string) {
+  await vscode.env.clipboard.writeText(text);
+}
