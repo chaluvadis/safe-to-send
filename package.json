@@ -32,6 +32,18 @@
       {
         "command": "safeSend.scanAndCopyForAI",
         "title": "Safe Send: Scan & Copy for AI"
+      },
+      {
+        "command": "safeSend.sanitizeSelection",
+        "title": "Safe Send: Sanitize Selection"
+      },
+      {
+        "command": "safeSend.sanitizeFile",
+        "title": "Safe Send: Sanitize File"
+      },
+      {
+        "command": "safeSend.installPreCommitHook",
+        "title": "Safe Send: Install Pre-Commit Hook"
       }
     ],
     "menus": {
@@ -45,6 +57,16 @@
           "command": "safeSend.scanAndCopyForAI",
           "when": "editorTextFocus && !editorHasSelection",
           "group": "safe-send"
+        },
+        {
+          "command": "safeSend.sanitizeSelection",
+          "group": "safeSend@1",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "safeSend.sanitizeFile",
+          "group": "safeSend@2",
+          "when": "editorTextFocus"
         }
       ],
       "editor/title/context": [
@@ -120,6 +142,11 @@
           "type": "string",
           "default": ".safe-send.json",
           "description": "Name of the repository config file to load custom patterns from."
+        },
+        "safeSend.excludeGlobs": {
+          "type": "array",
+          "default": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.git/**"],
+          "description": "Glob patterns for files and directories to exclude from scanning."
         }
       }
     }
