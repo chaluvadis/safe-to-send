@@ -11,9 +11,8 @@ import { execSync } from "child_process";
 import { readFileSync, existsSync, statSync } from "fs";
 import { join } from "path";
 
-// Node globals available when compiled to CommonJS
-declare const __filename: string;
-declare const __dirname: string;
+// CommonJS globals are automatically available in compiled output
+// No need to declare — they exist at runtime
 
 import { buildPatternList } from "./patternRegistry";
 import { loadRepoConfig } from "./repoConfig";

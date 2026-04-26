@@ -145,25 +145,40 @@
         },
         "safeSend.excludeGlobs": {
           "type": "array",
-          "default": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.git/**"],
+          "default": [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/build/**",
+            "**/.git/**"
+          ],
           "description": "Glob patterns for files and directories to exclude from scanning."
         }
       }
     }
   },
   "scripts": {
+    "clean": "rm -rf dist dist-test safe-send-*.vsix",
+    "build": "pnpm run clean && pnpm run compile && pnpm run compile:test && pnpm run compile:integration",
     "compile": "tsc -p ./",
     "compile:test": "tsc -p ./tsconfig.test.json",
-    "package": "vsce package --allow-package-all-secrets",
+    "compile:integration": "tsc -p ./tsconfig.integration.json",
+    "package": "pnpm run build && vsce package --allow-package-all-secrets",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "test": "pnpm run compile:test && node --test dist-test/test/*.test.js"
+    "test": "pnpm run compile:test && node --test dist-test/test/*.test.js",
+    "test:integration": "pnpm run compile:integration && node dist-test/integration/run.js",
+    "test:all": "pnpm test && pnpm run test:integration",
+    "ci": "pnpm run clean && pnpm run compile && pnpm test && pnpm run test:integration",
+    "install:local": "pnpm run package && code --install-extension safe-send-*.vsix --force",
+    "dev:setup": "pnpm install && pnpm run build && pnpm run install:local"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
     "@playwright/test": "^1.59.1",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^25.6.0",
     "@types/vscode": "^1.116.0",
+    "@vscode/test-electron": "^2.5.2",
     "@vscode/vsce": "latest",
     "typescript": "^6.0.3"
   }
