@@ -1,49 +1,72 @@
-type Detector = {
+import { BUILT_IN_PATTERNS, type CompiledPattern } from "./patternRegistry";
+
+export interface SensitiveMatch {
   label: string;
-  regex: RegExp;
-};
+  start: number;
+  end: number;
+  patternId: string;
+}
 
-const detectors: Detector[] = [
-  { label: "Anthropic API key", regex: /\bsk-ant-[a-zA-Z0-9]{20,}\b/g },
-  { label: "OpenAI API key", regex: /\bsk-[a-zA-Z0-9]{20,}\b/g },
-  { label: "GitHub token", regex: /\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b/g },
-  { label: "AWS key", regex: /\bAKIA[0-9A-Z]{16}\b/g },
-  { label: "JWT token", regex: /\beyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\b/g },
-  { label: "Private key block", regex: /-----BEGIN [A-Z ]*PRIVATE KEY-----/g },
-  { label: "IP address", regex: /\b\d{1,3}(?:\.\d{1,3}){3}\b/g },
-  { label: "Email", regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g },
-  {
-    label: "Hardcoded secret",
-    regex: /(password|secret|api_key)\s*[:=]\s*["'][^"']+["']/gi,
-  },
-];
-
-export function detectSensitiveData(text: string): string[] {
+export function detectSensitiveData(text: string, patterns?: CompiledPattern[]): string[] {
+  const activePatterns = patterns ?? Array.from(BUILT_IN_PATTERNS);
   const found: string[] = [];
 
-  for (const detector of detectors) {
-    if (detector.regex.test(text)) {
-      found.push(detector.label);
+  for (const pattern of activePatterns) {
+    if (pattern.regex.test(text)) {
+      found.push(pattern.label);
     }
-    detector.regex.lastIndex = 0;
+    pattern.regex.lastIndex = 0;
   }
 
   return found;
 }
 
-export function sanitizeSensitiveData(text: string): string {
-  return text
-    .replace(/\bsk-ant-[a-zA-Z0-9]{20,}\b/g, "<ANTHROPIC_API_KEY>")
-    .replace(/\bsk-[a-zA-Z0-9]{20,}\b/g, "<API_KEY>")
-    .replace(/\b(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36,}\b/g, "<GITHUB_TOKEN>")
-    .replace(/\bAKIA[0-9A-Z]{16}\b/g, "<AWS_KEY>")
-    .replace(/\beyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\b/g, "<JWT_TOKEN>")
-    .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----/g, "<PRIVATE_KEY_BLOCK>")
-    .replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, "<IP_ADDRESS>")
-    .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, "<EMAIL>")
-    .replace(
-      /(password|secret|api_key)(\s*[:=]\s*["'])([^"']+)(["'])/gi,
-      (_match, key: string, prefix: string, _value: string, suffix: string) =>
-        `${key}${prefix}<SECRET>${suffix}`,
-    );
+export function detectSensitiveDataWithRanges(text: string, patterns?: CompiledPattern[]): SensitiveMatch[] {
+  const activePatterns = patterns ?? Array.from(BUILT_IN_PATTERNS);
+  const matches: SensitiveMatch[] = [];
+
+  for (const pattern of activePatterns) {
+    let match: RegExpExecArray | null;
+    pattern.regex.lastIndex = 0;
+    while ((match = pattern.regex.exec(text)) !== null) {
+      // Avoid zero-length matches
+      if (match.index === match.index + match[0].length) {
+        break;
+      }
+      matches.push({
+        label: pattern.label,
+        start: match.index,
+        end: match.index + match[0].length,
+        patternId: pattern.id,
+      });
+    }
+    pattern.regex.lastIndex = 0;
+  }
+
+  // Sort by start position
+  matches.sort((a, b) => a.start - b.start);
+  return matches;
+}
+
+export function sanitizeSensitiveData(text: string, patterns?: CompiledPattern[]): string {
+  const activePatterns = patterns ?? Array.from(BUILT_IN_PATTERNS);
+  let result = text;
+  for (const pattern of activePatterns) {
+    result = pattern.sanitize(result);
+  }
+  return result;
+}
+
+/**
+ * Sanitizes a specific match within text (used for code actions).
+ */
+export function sanitizeMatch(text: string, match: SensitiveMatch, patterns?: CompiledPattern[]): string {
+  const activePatterns = patterns ?? Array.from(BUILT_IN_PATTERNS);
+  const pattern = activePatterns.find(p => p.id === match.patternId);
+  if (!pattern) return text;
+
+  // Replace only this specific occurrence at the exact position
+  const before = text.slice(0, match.start);
+  const after = text.slice(match.end);
+  return before + pattern.placeholder + after;
 }

@@ -32,6 +32,18 @@
       {
         "command": "safeSend.scanAndCopyForAI",
         "title": "Safe Send: Scan & Copy for AI"
+      },
+      {
+        "command": "safeSend.sanitizeSelection",
+        "title": "Safe Send: Sanitize Selection"
+      },
+      {
+        "command": "safeSend.sanitizeFile",
+        "title": "Safe Send: Sanitize File"
+      },
+      {
+        "command": "safeSend.installPreCommitHook",
+        "title": "Safe Send: Install Pre-Commit Hook"
       }
     ],
     "menus": {
@@ -45,6 +57,16 @@
           "command": "safeSend.scanAndCopyForAI",
           "when": "editorTextFocus && !editorHasSelection",
           "group": "safe-send"
+        },
+        {
+          "command": "safeSend.sanitizeSelection",
+          "group": "safeSend@1",
+          "when": "editorTextFocus"
+        },
+        {
+          "command": "safeSend.sanitizeFile",
+          "group": "safeSend@2",
+          "when": "editorTextFocus"
         }
       ],
       "editor/title/context": [
@@ -53,20 +75,111 @@
           "when": "editorTextFocus"
         }
       ]
+    },
+    "configuration": {
+      "title": "Safe Send",
+      "properties": {
+        "safeSend.customPatterns": {
+          "type": "array",
+          "default": [],
+          "description": "Custom sensitive-data patterns to detect and sanitize.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "label",
+              "regex"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the pattern."
+              },
+              "label": {
+                "type": "string",
+                "description": "Human-readable name shown in warnings."
+              },
+              "regex": {
+                "type": "string",
+                "description": "Regular expression source string (JavaScript syntax)."
+              },
+              "flags": {
+                "type": "string",
+                "default": "g",
+                "description": "Regex flags. The 'g' (global) flag is always enforced."
+              },
+              "placeholder": {
+                "type": "string",
+                "default": "<REDACTED>",
+                "description": "Replacement text used during sanitization."
+              },
+              "riskScore": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "default": 0,
+                "description": "Base risk score contributed when this pattern matches (0–100)."
+              },
+              "critical": {
+                "type": "boolean",
+                "default": false,
+                "description": "When true, a match escalates the total risk score to at least 60."
+              },
+              "enabled": {
+                "type": "boolean",
+                "default": true,
+                "description": "Set to false to temporarily disable this pattern."
+              }
+            }
+          }
+        },
+        "safeSend.repoConfig.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Load additional custom patterns from a repository config file (e.g. .safe-send.json)."
+        },
+        "safeSend.repoConfig.filename": {
+          "type": "string",
+          "default": ".safe-send.json",
+          "description": "Name of the repository config file to load custom patterns from."
+        },
+        "safeSend.excludeGlobs": {
+          "type": "array",
+          "default": [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/build/**",
+            "**/.git/**"
+          ],
+          "description": "Glob patterns for files and directories to exclude from scanning."
+        }
+      }
     }
   },
   "scripts": {
+    "clean": "rm -rf dist dist-test safe-send-*.vsix",
+    "build": "pnpm run clean && pnpm run compile && pnpm run compile:test && pnpm run compile:integration",
     "compile": "tsc -p ./",
-    "package": "vsce package --allow-package-all-secrets",
+    "compile:test": "tsc -p ./tsconfig.test.json",
+    "compile:integration": "tsc -p ./tsconfig.integration.json",
+    "package": "pnpm run build && vsce package --allow-package-all-secrets",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "test": "pnpm run compile && node --test \"dist/**/*.test.js\""
+    "test": "pnpm run compile:test && node --test dist-test/test/*.test.js",
+    "test:integration": "pnpm run compile:integration && node dist-test/integration/run.js",
+    "test:all": "pnpm test && pnpm run test:integration",
+    "ci": "pnpm run clean && pnpm run compile && pnpm test && pnpm run test:integration",
+    "install:local": "pnpm run package && code --install-extension safe-send-*.vsix --force",
+    "dev:setup": "pnpm install && pnpm run build && pnpm run install:local"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
-    "@vscode/vsce": "latest",
+    "@playwright/test": "^1.59.1",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^25.6.0",
     "@types/vscode": "^1.116.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "latest",
     "typescript": "^6.0.3"
   }
 }
