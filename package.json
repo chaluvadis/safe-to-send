@@ -5,7 +5,7 @@
   "version": "0.0.1",
   "private": false,
   "license": "MIT",
-  "repository": "https://github.com/chaluvadis/safe-send-to-ai",
+  "repository": "https://github.com/chaluvadis/safe-to-send",
   "keywords": [
     "vscode",
     "security",
@@ -169,8 +169,9 @@
     "test:integration": "pnpm run compile:integration && node dist-test/integration/run.js",
     "test:all": "pnpm test && pnpm run test:integration",
     "ci": "pnpm run clean && pnpm run compile && pnpm test && pnpm run test:integration",
-    "install:local": "pnpm run package && code --install-extension safe-send-*.vsix --force",
-    "dev:setup": "pnpm install && pnpm run build && pnpm run install:local"
+    "install:local": "pnpm run package && code-insiders --install-extension safe-send-*.vsix --force",
+    "remove:local": "code-insiders --uninstall-extension chaluvadis.safe-send 2>/dev/null || true",
+    "dev:setup": "pnpm install && pnpm run build && pnpm run remove:local && pnpm run install:local"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.13",
