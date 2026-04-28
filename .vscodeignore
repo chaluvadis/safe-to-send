@@ -1,6 +1,8 @@
 .vscode/**
 .vscode-test/**
 src/**
+dist/src/**
+dist/test/**
 .gitignore
 tsconfig.tsbuildinfo
 .kilo/
@@ -26,6 +28,7 @@ esbuild.js
 biome.json
 package.json
 
+
 # Reports and internal documentation
 reports/
 CODE_REVIEW_REPORT.md
@@ -33,3 +36,8 @@ CHANGES.md
 CHANGES_REQUIRED.md
 FINAL_SUMMARY.txt
 REVIEW_COMPLETE.md
+
+tsconfig.integration.json
+tsconfig.test.json
+tsconfig.ux.json
+scripts/
