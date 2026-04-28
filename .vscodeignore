@@ -1,6 +1,8 @@
 .vscode/**
 .vscode-test/**
 src/**
+dist/src/**
+dist/test/**
 .gitignore
 tsconfig.tsbuildinfo
 .kilo/
@@ -16,10 +18,26 @@ pnpm-lock.yaml
 examples/**
 docs/**
 test/**
-esbuild.js
+test_data/**
+dist-test/
+.eslintrc.js
 biome.json
 package.json
 .github
 esbuild.js
 biome.json
 package.json
+
+
+# Reports and internal documentation
+reports/
+CODE_REVIEW_REPORT.md
+CHANGES.md
+CHANGES_REQUIRED.md
+FINAL_SUMMARY.txt
+REVIEW_COMPLETE.md
+
+tsconfig.integration.json
+tsconfig.test.json
+tsconfig.ux.json
+scripts/

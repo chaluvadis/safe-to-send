@@ -140,3 +140,9 @@ vite.config.ts.timestamp-*
 .kilo
 
 *.vsix
+dist-test/
+
+# Reports and generated documentation
+reports/
+*.log
+*.swp

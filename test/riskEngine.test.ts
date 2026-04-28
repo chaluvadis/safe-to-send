@@ -1,5 +1,6 @@
 import assert = require("node:assert/strict");
 import test = require("node:test");
+
 import { assessRisk } from "../src/riskEngine";
 
 test("assessRisk returns LOW for clean text", () => {

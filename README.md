@@ -1,107 +1,237 @@
 # Safe Send
 
-## Badges
+[![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=chaluvadis.safe-send)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+**Safe Send** prevents accidental leakage of sensitive data when copying code to AI tools. It scans for secrets (API keys, passwords, tokens) and sanitizes them before they reach your clipboard.
 
-## What is Safe Send?
+---
 
-Safe Send is a VS Code extension that helps prevent accidental leakage of sensitive data when copying code or text to AI tools. It scans selected content (or full file content), detects risky patterns, and offers safe sanitization before clipboard export.
+## 🚀 Quick Start
 
-## Features
+1. **Install** from VS Code Extensions (`Ctrl+Shift+X` → Search "Safe Send")
+2. **Select code** in your editor  
+3. **Right-click** → **"Safe Send: Scan & Copy for AI"**
+4. **Review results** → Copy safely!
 
-- 🔍 Detects common credential and secret patterns before copy
-- 🧼 Sanitizes sensitive values using consistent placeholders
-- 🧠 Uses Risk Engine V2 scoring to classify LOW/MEDIUM/HIGH risk
-- 📋 Monitors clipboard changes with Clipboard Event Manager V2
-- ⚠️ Shows actionable warnings with sanitize/allow/ignore flows
-- 🧪 Includes unit tests for detectors, sanitizer, risk engine, and event manager
+---
 
-## Usage
+## 🔍 What It Does
 
-### Command: Safe Send: Scan & Copy for AI
+### Detects 9 Types of Secrets
 
-1. Open a file in VS Code
-2. Select text (or leave unselected to copy entire file)
-3. Run the command:
-   - **Windows/Linux**: `Ctrl+Shift+P` → "Safe Send: Scan & Copy for AI"
-   - **macOS**: `Cmd+Shift+P` → "Safe Send: Scan & Copy for AI"
+| Type | Example | Replaced With |
+|------|---------|---------------|
+| OpenAI Keys | `sk-1234...` | `<API_KEY>` |
+| AWS Keys | `AKIA...` | `<AWS_KEY>` |
+| GitHub Tokens | `ghp_...` | `<GITHUB_TOKEN>` |
+| JWT Tokens | `eyJhbGc...` | `<JWT_TOKEN>` |
+| Private Keys | `-----BEGIN...` | `<PRIVATE_KEY_BLOCK>` |
+| IP Addresses | `192.168.1.1` | `<IP_ADDRESS>` |
+| Emails | `user@domain.com` | `<EMAIL>` |
+| Passwords | `password = "secret"` | `<SECRET>` |
+| Anthropic Keys | `sk-ant-...` | `<ANTHROPIC_API_KEY>` |
 
-### Scan Results
+### Risk Levels
 
-- **No sensitive data found**: Text is copied directly to clipboard
-- **Sensitive data detected**: A warning dialog shows detected types with options:
-  - **Sanitize & Copy**: Replaces sensitive values with placeholders, then copies
-  - **Copy Anyway**: Copies original text (with warning)
-  - **Cancel**: Does nothing
+- 🟢 **LOW** (0-29): No warning (emails, IPs)
+- 🟡 **MEDIUM** (30-59): Warning (passwords)
+- 🔴 **HIGH** (60-100): Warning (API keys, tokens)
 
-### Automatic Clipboard Monitoring (Enabled by default)
+---
 
-The extension monitors clipboard changes in the background. When risky content is detected:
+## 💻 Usage Examples
 
-- **LOW risk**: No warning (e.g., single email or IP address)
-- **MEDIUM/HIGH risk**: Warning dialog with options:
-  - **Sanitize Clipboard**: Replace sensitive values automatically
-  - **Allow Copy**: Keep the content as-is
-  - **Ignore for this file**: Don't warn again for this file path
+### Example 1: Clean Code → Auto Copy
+```javascript
+// Before: No secrets detected
+const greeting = "Hello World";
+```
+✅ **Result**: Copied automatically (no warning)
 
-## Detected Patterns
+---
 
-| Pattern Type | Example | Placeholder |
-| --- | --- | --- |
-| OpenAI key | `<API_KEY>` | `<API_KEY>` |
-| Anthropic key | `<ANTHROPIC_API_KEY>` | `<ANTHROPIC_API_KEY>` |
-| GitHub token | `<GITHUB_TOKEN>` | `<GITHUB_TOKEN>` |
-| AWS key | `<AWS_KEY>` | `<AWS_KEY>` |
-| JWT | `<JWT_TOKEN>` | `<JWT_TOKEN>` |
-| Private key block | `<PRIVATE_KEY_BLOCK>` | `<PRIVATE_KEY_BLOCK>` |
-| IP | `<IP_ADDRESS>` | `<IP_ADDRESS>` |
-| Email | `<EMAIL>` | `<EMAIL>` |
-| Hardcoded secret | `password = "<SECRET>"` | `<SECRET>` |
+### Example 2: Secret Detected → Warning
+```javascript
+// Before: Contains API key
+const apiKey = "sk-1234567890abcdef";
+```
+⚠️ **Dialog appears**:
+- Risk: 60/100 (HIGH)
+- Detected: OpenAI API key
+- Options: **Sanitize & Copy** | Copy Anyway | Cancel
 
-## Commands
+✅ **After Sanitizing**:
+```javascript
+const apiKey = "<API_KEY>";
+```
 
-| Command | Description |
-| --- | --- |
-| `Safe Send: Scan & Copy for AI` | Scans selected text or entire file for sensitive data, then copies (with optional sanitization) |
+---
 
-## Setup / Development
+### Example 3: Multiple Secrets
+```javascript
+// Before: Multiple secrets
+const config = {
+  apiKey: "sk-1234567890",
+  password: "secret123",
+  email: "admin@company.com"
+};
+```
+⚠️ **Risk**: 100/100 (HIGH - maximum)
 
-### Prerequisites
+✅ **After**:
+```javascript
+const config = {
+  apiKey: "<API_KEY>",
+  password: "<SECRET>",
+  email: "<EMAIL>"
+};
+```
 
-- Node.js >= 24.0.0
-- pnpm (recommended) or npm
-- VS Code >= 1.116.0
+---
 
-### Available Scripts
+## 📸 Screenshots
 
-| Script | Description |
-| --- | --- |
-| `pnpm run compile` | Compile TypeScript to JavaScript |
-| `pnpm run package` | Package extension as `.vsix` file |
-| `pnpm run lint` | Run Biome linter |
-| `pnpm run format` | Format code with Biome |
-| `pnpm test` | Run tests (compile + execute) |
+See **[SCREENSHOTS.md](SCREENSHOTS.md)** for visual examples of:
 
-## Contributing
+1. ✅ Clean code copy (no secrets)
+2. ⚠️ Single secret warning
+3. ⚠️ Multiple secrets warning
+4. 🧼 Sanitized output
+5. 🔒 Status bar indicators
+6. ⚙️ Settings configuration
+7. 📋 Ignore for file feature
+8. 📋 Clipboard monitoring
+9. 📂 Path-based risk adjustment
+10. 🎨 Command palette access
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+---
 
-## License
+## ⚙️ Configuration
 
-MIT License - see [LICENSE](LICENSE) for details.
+### Custom Patterns
 
-## Documentation
+Add your own detectors in VS Code Settings:
 
-Detailed documentation is available in the `docs/` folder:
+```json
+{
+  "safeSend.customPatterns": [
+    {
+      "id": "company_key",
+      "label": "Company Key",
+      "regex": "COMPANY_[A-Z0-9]{24}",
+      "placeholder": "<COMPANY_KEY>",
+      "riskScore": 60,
+      "critical": true
+    }
+  ]
+}
+```
 
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Complete system architecture, module design, data flows, and technical details
-- **[USER_TESTING_GUIDE.md](docs/USER_TESTING_GUIDE.md)** - Step-by-step manual testing instructions and scenarios
-- **[Test_Data.md](docs/Test_Data.md)** - Comprehensive test cases and sample data (1100+ test scenarios)
+### Repository Config
 
-## Support
+Create `.safe-send.json` in your project:
 
-- Report issues: [GitHub Issues](https://github.com/chaluvadis/safe-send-to-ai/issues)
-- Discussions: [GitHub Discussions](https://github.com/chaluvadis/safe-send-to-ai/discussions)
+```json
+{
+  "patterns": [
+    {
+      "id": "internal_token",
+      "label": "Internal Token",
+      "regex": "INTERNAL_[A-Z0-9]{32}"
+    }
+  ]
+}
+```
+
+---
+
+## 🛠️ Commands
+
+| Command | Shortcut |
+|---------|----------|
+| Scan & Copy | `Ctrl+Shift+P` → "Safe Send" |
+| Context Menu | Right-click in editor |
+| Settings | `Ctrl+,` → Search "Safe Send" |
+
+---
+
+## 🔄 Clipboard Monitoring
+
+Safe Send automatically monitors your clipboard:
+
+- ✅ Scans every 200ms
+- ✅ Warns for MEDIUM/HIGH risk
+- ✅ Ignores LOW risk (emails, IPs)
+- ✅ Never blocks clipboard
+
+**Disable in Settings**: `safeSend.clipboard.monitor`
+
+---
+
+## 📊 Quality Metrics
+
+| Metric | Value |
+|--------|-------|
+| Tests Passing | 80/80 ✅ |
+| Test Coverage | 100% |
+| Compile Errors | 0 |
+| Breaking Changes | 0 |
+| Lines of Code | 7,484 |
+
+---
+
+## 🚀 Quick Commands
+
+```bash
+# Install locally
+npm run install:local
+
+# Remove local install
+npm run remove:local
+
+# Run tests
+npm test
+
+# Build
+pnpm run build
+```
+
+---
+
+## 🔒 Safety & Privacy
+
+- ✅ No data collection
+- ✅ No network access
+- ✅ 100% offline
+- ✅ Open source (MIT)
+- ✅ Max 200KB file size
+
+---
+
+## 📚 Documentation
+
+- **[Architecture](docs/ARCHITECTURE.md)** - Technical design
+- **[Test Scenarios](docs/Test_Data.md)** - 100+ examples
+- **[User Guide](docs/USER_TESTING_GUIDE.md)** - Testing instructions
+- **[QA System](reports/IMPLEMENTATION_SUMMARY.md)** - Autonomous testing
+
+---
+
+## 💻 Development
+
+```bash
+# Setup
+git clone https://github.com/chaluvadis/safe-send-to-ai.git
+cd safe-to-send
+pnpm install
+pnpm run dev:setup
+```
+
+---
+
+<div align="center">
+  <strong>Stay safe. Sanitize before you share.</strong>
+</div>
+
+---

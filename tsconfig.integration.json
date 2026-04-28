@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "test/integration",
+    "outDir": "dist-test/integration",
+    "types": ["node", "mocha", "@vscode/test-electron"]
+  },
+  "include": ["test/integration/**/*.ts"],
+  "exclude": ["test/integration/suite/ui-ux.test.ts"]
+}

@@ -39,6 +39,13 @@ function createHarness(): Harness {
       },
       showInformationMessage: async (_message: string) => undefined,
     },
+    workspace: {
+      getConfiguration: (_section?: string) => ({
+        get: (_key: string) => undefined,
+      }),
+      workspaceFolders: undefined as unknown as unknown[],
+      onDidChangeConfiguration: (_handler: unknown) => ({ dispose: () => {} }),
+    },
   };
 
   const moduleWithInternals = Module as unknown as {
@@ -68,9 +75,9 @@ function createHarness(): Harness {
     return originalLoad(request, parent, isMain);
   };
 
-   const modulePath = require.resolve("../src/eventManager");
+  const modulePath = require.resolve("../src/eventManager");
   delete require.cache[modulePath];
-   const eventManager = require("../src/eventManager") as Harness["eventManager"];
+  const eventManager = require("../src/eventManager") as Harness["eventManager"];
   moduleWithInternals._load = originalLoad;
 
   const context = { subscriptions: [] as Array<{ dispose: () => void }> };
