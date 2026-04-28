@@ -2,7 +2,7 @@
   "name": "safe-send",
   "displayName": "Safe Send",
   "description": "Scan code for sensitive data before copying to AI tools.",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "private": false,
   "license": "MIT",
   "repository": {
