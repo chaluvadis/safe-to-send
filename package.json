@@ -5,7 +5,10 @@
   "version": "0.0.1",
   "private": false,
   "license": "MIT",
-  "repository": "https://github.com/chaluvadis/safe-send-to-ai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chaluvadis/safe-to-send.git"
+  },
   "keywords": [
     "vscode",
     "security",
@@ -15,7 +18,7 @@
     "sanitize"
   ],
   "icon": "assets/icon.png",
-  "publisher": "chaluvadis",
+  "publisher": "nomad-in-code",
   "engines": {
     "vscode": "^1.116.0",
     "node": ">=24.0.0"
