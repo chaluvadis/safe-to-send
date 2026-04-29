@@ -1,6 +1,6 @@
 # Safe Send
 
-[![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=chaluvadis.safe-send)
+[![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-007ACC?logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=nomad-in-code.safe-send)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 **Safe Send** prevents accidental leakage of sensitive data when copying code to AI tools. It scans for secrets (API keys, passwords, tokens) and sanitizes them before they reach your clipboard.
