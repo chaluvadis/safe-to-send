@@ -25,23 +25,23 @@ function isTestFile(filePath?: string, content?: string): boolean {
     /\/testutils\//,
     /\/testing\//,
   ];
-  if (falsePositivePatterns.some(p => p.test(normalizedPath))) {
+  if (falsePositivePatterns.some((p) => p.test(normalizedPath))) {
     return false;
   }
 
   // Precise test path patterns (common conventions)
   const testPathPatterns = [
-    /\/__tests__\//i,      // Jest/Vitest/TS-Jest
-    /\/test\/src\//i,      // monorepo: packages/*/test/src
+    /\/__tests__\//i, // Jest/Vitest/TS-Jest
+    /\/test\/src\//i, // monorepo: packages/*/test/src
     /\/integration\/test\//i,
     /\/e2e\//i,
     /\.test\.(ts|js|tsx|jsx|mjs|cjs)$/i,
     /\.spec\.(ts|js|tsx|jsx|mjs|cjs)$/i,
-    /^test\.(ts|js)$/i,    // root-level test files
+    /^test\.(ts|js)$/i, // root-level test files
     /^tests\.(ts|js)$/i,
   ];
 
-  if (testPathPatterns.some(p => p.test(normalizedPath))) {
+  if (testPathPatterns.some((p) => p.test(normalizedPath))) {
     // Path strongly indicates test file
     return true;
   }
@@ -62,7 +62,7 @@ function isTestFile(filePath?: string, content?: string): boolean {
         /mocha\./,
         /should\(\s*\)/,
       ];
-      const matches = testContentPatterns.filter(p => p.test(content)).length;
+      const matches = testContentPatterns.filter((p) => p.test(content)).length;
       if (matches >= 2) return true; // Strong content evidence
     }
     // If path matches known test dir exactly (like __tests__), trust it
@@ -73,12 +73,9 @@ function isTestFile(filePath?: string, content?: string): boolean {
 
   // Content-based detection (only if path doesn't contradict)
   if (content) {
-    const strongContentIndicators = [
-      /^\s*describe\(/m,
-      /^\s*(it|test)\(/m,
-    ];
-    const count = strongContentIndicators.filter(p => p.test(content)).length;
-    if (count >= 3) return true;  // Definitely a test file
+    const strongContentIndicators = [/^\s*describe\(/m, /^\s*(it|test)\(/m];
+    const count = strongContentIndicators.filter((p) => p.test(content)).length;
+    if (count >= 3) return true; // Definitely a test file
   }
 
   return false;
@@ -155,48 +152,68 @@ export function assessRisk(
   patterns?: CompiledPattern[],
 ): RiskResult {
   const activePatterns = patterns ?? Array.from(BUILT_IN_PATTERNS);
-  const findings: string[] = [];
+  let findings: string[] = [];
   let score = 0;
   let hasCriticalKey = false;
 
   for (const pattern of activePatterns) {
-    if (pattern.regex.test(text)) {
+    let matched = false;
+    pattern.regex.lastIndex = 0;
+    for (let m = pattern.regex.exec(text); m !== null; m = pattern.regex.exec(text)) {
+      if (m[0].length === 0) {
+        pattern.regex.lastIndex++;
+        continue;
+      }
+      if (!pattern.shouldIgnore?.(m[0])) {
+        matched = true;
+        break;
+      }
+    }
+    pattern.regex.lastIndex = 0;
+    if (matched) {
       findings.push(pattern.label);
       score += pattern.riskScore;
       if (pattern.critical) {
         hasCriticalKey = true;
       }
     }
-    pattern.regex.lastIndex = 0;
   }
 
   if (hasCriticalKey && score < 60) {
     score = 60;
   }
 
+  // Collapse duplicate labels so the same secret type appearing multiple times
+  // doesn't inflate the multi-finding bonus (score is still summed per match).
+  findings = [...new Set(findings)];
+
   const normalizedPath = filePath?.replaceAll("\\", "/");
 
-  // Legacy path-based modifiers (preserved for backward compatibility)
+  // Legacy path-based modifiers.
+  // NOTE: a real `.env` file is where secrets actually live, so it raises
+  // risk rather than lowering it (.env.example is handled separately below).
   const hasEnvLegacy = normalizedPath?.endsWith(".env");
   const hasReadmeLegacy = normalizedPath?.endsWith("README.md");
   const hasTestLegacy = normalizedPath?.includes("/test/");
 
-  if (hasEnvLegacy) score -= 10;
+  if (hasEnvLegacy) score += 15;
   if (hasReadmeLegacy) score += 10;
   if (hasTestLegacy) score -= 15;
 
   // Enhanced context-aware scoring (runs only if not covered by legacy equivalents)
   // 1. Configuration templates (e.g., .env.example, config.template.js)
   if (isConfigTemplate(filePath)) score -= 15;
-  
   // 2. Test files - only if not already classified by /test/ path
   else if (!hasTestLegacy && isTestFile(filePath, text)) score -= 20;
-  
   // 3. Documentation files - README already handled above, other docs get reduction
   else if (!hasReadmeLegacy && isDocumentationOrExample(filePath)) score -= 10;
-  
   // 4. Infrastructure-as-Code files (if not already handled by other rules)
   else if (isIaCFile(filePath)) score -= 5;
+
+  // Path-based reductions above must never drop a critical secret below HIGH.
+  if (hasCriticalKey && score < 60) {
+    score = 60;
+  }
 
   if (findings.length >= 2) {
     score += 20;

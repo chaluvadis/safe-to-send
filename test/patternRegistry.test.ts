@@ -5,6 +5,8 @@ import {
   BUILT_IN_PATTERNS,
   buildPatternList,
   compilePattern,
+  setUrlAllowlist,
+  isUrlAllowed,
   MAX_CUSTOM_PATTERNS,
   type PatternDefinition,
 } from "../src/patternRegistry";
@@ -284,4 +286,193 @@ test("built-in hardcoded_secret pattern preserves key name in sanitization", () 
   assert.equal(result, 'password = "<SECRET>"');
   // Confirm the key name is preserved, not replaced
   assert.ok(result.startsWith("password"));
+});
+
+// ---------------------------------------------------------------------------
+// URL detection + allow-list
+// ---------------------------------------------------------------------------
+
+test("URL patterns redact generic and credentialed URLs by default", () => {
+  const general = BUILT_IN_PATTERNS.find((p) => p.id === "url_general");
+  const cred = BUILT_IN_PATTERNS.find((p) => p.id === "url_with_credentials");
+  assert.ok(general && cred, "URL patterns must exist");
+
+  let text = "see https://example.com/docs and https://user:pw@secret.com/x";
+  text = cred.sanitize(text);
+  text = general.sanitize(text);
+  assert.ok(!text.includes("example.com"), "generic URL should be redacted");
+  assert.ok(text.includes("<URL_WITH_CREDENTIALS>"), "credentialed URL must be redacted");
+});
+
+test("isUrlAllowed matches exact and wildcard hosts case-insensitively", () => {
+  setUrlAllowlist(["Example.com", "*.trusted.dev"]);
+  try {
+    assert.equal(isUrlAllowed("https://example.com/path"), true);
+    assert.equal(isUrlAllowed("https://api.trusted.dev/x"), true);
+    assert.equal(isUrlAllowed("https://other.dev/x"), false);
+    assert.equal(isUrlAllowed("https://untrusted.com"), false);
+  } finally {
+    setUrlAllowlist([]);
+  }
+});
+
+test("allow-listed URLs are neither detected nor sanitized", () => {
+  setUrlAllowlist(["example.com"]);
+  try {
+    const text = "visit https://example.com/docs please";
+    const detected = detectSensitiveData(text);
+    assert.ok(
+      !detected.includes("URL"),
+      "allow-listed URL host should not be reported as a URL finding",
+    );
+    assert.equal(sanitize(text), text, "allow-listed URL should be left untouched");
+
+    const risky = "https://example.com " + 'password = "secret"';
+    const stillDetected = detectSensitiveData(risky);
+    assert.ok(stillDetected.includes("Hardcoded secret"), "other patterns still detect");
+    assert.ok(!stillDetected.includes("URL"), "allow-listed URL host not reported");
+  } finally {
+    setUrlAllowlist([]);
+  }
+});
+
+test("credentialed URL on an allow-listed host is not redacted", () => {
+  setUrlAllowlist(["example.com"]);
+  try {
+    const text = "https://user:pw@example.com/x";
+    assert.equal(sanitize(text), text, "trusted host with credentials stays intact");
+  } finally {
+    setUrlAllowlist([]);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Base64 / IP false-positive hardening
+// ---------------------------------------------------------------------------
+
+test("high-entropy base64 is flagged, low-entropy long strings are not", () => {
+  const base64 = BUILT_IN_PATTERNS.find((p) => p.id === "high_entropy_base64");
+  assert.ok(base64, "base64 pattern must exist");
+
+  const random = "ZmFrZXNlY3JldGtleTEyMzQ1Njc4OWFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6";
+  assert.ok(base64.shouldIgnore?.(random) === false, "random base64 should be detected");
+
+  const identifier = "thisIsJustAVeryLongCamelCaseIdentifierNameWithoutAnyRandomnessAtAll";
+  assert.equal(base64.shouldIgnore?.(identifier), true, "ordinary identifier should be ignored");
+
+  const hex = "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5";
+  assert.equal(base64.shouldIgnore?.(hex), true, "hex digest should be ignored");
+
+  // Real-world base64url tokens (with -/_) must still be detected.
+  const base64url = "q7z7Kp9mX2vN4bR8tL1cW3eY5uI6oP0aS9dF2gH4jK";
+  assert.equal(
+    base64.shouldIgnore?.(base64url),
+    false,
+    "random base64url token should be detected",
+  );
+
+  const longSecret = "xK9mP2qR7vN4tB8wL1cZ3yE5uI0oA6sD9fG2hJ4kM5nX8pQ1rS3tU7vW";
+  assert.equal(
+    base64.shouldIgnore?.(longSecret),
+    false,
+    "long random alphanumeric secret should be detected",
+  );
+});
+
+test("invalid IP octets (>=256) are ignored", () => {
+  const ip = BUILT_IN_PATTERNS.find((p) => p.id === "ip_address");
+  assert.ok(ip, "ip pattern must exist");
+  assert.equal(ip.shouldIgnore?.("256.1.1.1"), true, "octet > 255 is not a real IP");
+  assert.equal(ip.shouldIgnore?.("192.168.1.1"), false, "valid private IP is detected");
+});
+
+test("hardcoded_secret does not re-redact an existing placeholder", () => {
+  const pattern = BUILT_IN_PATTERNS.find((p) => p.id === "hardcoded_secret");
+  assert.ok(pattern !== undefined);
+  assert.equal(
+    pattern.sanitize('api_key = "<API_KEY>"'),
+    'api_key = "<API_KEY>"',
+    "already-sanitized value must be left untouched",
+  );
+  assert.equal(
+    pattern.sanitize('api_key = "realvalue"'),
+    'api_key = "<SECRET>"',
+    "real value is still redacted",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Popular service tokens + PII (added in the next-version batch)
+// ---------------------------------------------------------------------------
+
+test("popular service-token and PII patterns detect and redact", () => {
+  const cases: Array<{ input: string; label: string; placeholder: string }> = [
+    { input: `AIza${"A".repeat(35)}`, label: "Google API key", placeholder: "<GOOGLE_API_KEY>" },
+    {
+      input: "sk_live_" + "a".repeat(24),
+      label: "Stripe key",
+      placeholder: "<STRIPE_KEY>",
+    },
+    {
+      input: "whsec_abcDEF123ghiJKL456mnoPQR789stu",
+      label: "Stripe webhook secret",
+      placeholder: "<STRIPE_WEBHOOK_SECRET>",
+    },
+    {
+      input: "xoxb-1234567890-1234567890123-abcdefABCDEF",
+      label: "Slack token",
+      placeholder: "<SLACK_TOKEN>",
+    },
+    {
+      input: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXX",
+      label: "Slack webhook URL",
+      placeholder: "<SLACK_WEBHOOK>",
+    },
+    {
+      input: "AC" + "0".repeat(32),
+      label: "Twilio account SID",
+      placeholder: "<TWILIO_SID>",
+    },
+    {
+      input: "SK" + "0".repeat(32),
+      label: "Twilio API key",
+      placeholder: "<TWILIO_API_KEY>",
+    },
+    {
+      input: "123456789:AAH7xKq9abcdefGHIJKLMNOPQRSTUVwxyzZ",
+      label: "Telegram bot token",
+      placeholder: "<TELEGRAM_BOT_TOKEN>",
+    },
+    { input: "arn:aws:iam::123456789012:user/example", label: "AWS ARN", placeholder: "<AWS_ARN>" },
+    { input: "+14155552671", label: "Phone number", placeholder: "<PHONE_NUMBER>" },
+    { input: "415-555-2671", label: "Phone number", placeholder: "<PHONE_NUMBER>" },
+  ];
+
+  for (const { input, label, placeholder } of cases) {
+    assert.ok(detectSensitiveData(input).includes(label), `expected to detect ${label}`);
+    assert.ok(sanitize(input).includes(placeholder), `expected to redact ${label}`);
+  }
+});
+
+test("Slack webhook URL is redacted as a webhook, not a generic URL", () => {
+  const input = "https://hooks.slack.com/services/T000/B000/XXXX";
+  assert.equal(sanitize(input), "<SLACK_WEBHOOK>");
+});
+
+test("hardcoded_secret keyword set covers more secret names", () => {
+  const pattern = BUILT_IN_PATTERNS.find((p) => p.id === "hardcoded_secret");
+  assert.ok(pattern !== undefined);
+  for (const line of [
+    'client_secret = "abc"',
+    'access_key_id = "AKIA123"',
+    'secret_key = "xyz"',
+    'encryption_key = "qwe"',
+    'database_url = "postgres://u:p@h:5432/db"',
+    'api_token = "tok"',
+    'webhook_secret = "wh"',
+    'refresh_token = "rt"',
+  ]) {
+    pattern.regex.lastIndex = 0;
+    assert.ok(pattern.regex.test(line), `expected to match: ${line}`);
+  }
 });

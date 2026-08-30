@@ -6,10 +6,11 @@
 
 ```json
 "commands": [
-  {
-    "command": "safeSend.scanAndCopyForAI",
-    "title": "Safe Send: Scan & Copy for AI"
-  }
+  { "command": "safeSend.scanAndCopyForAI",      "title": "Safe Send: Scan & Copy for AI" },
+  { "command": "safeSend.sanitizeSelection",     "title": "Safe Send: Sanitize Selection" },
+  { "command": "safeSend.sanitizeFile",         "title": "Safe Send: Sanitize File" },
+  { "command": "safeSend.sanitizeMatch",        "title": "Safe Send: Sanitize Match" },
+  { "command": "safeSend.installPreCommitHook", "title": "Safe Send: Install Pre-Commit Hook" }
 ]
 ```
 
@@ -113,65 +114,61 @@
 ### 9.1 Test Pyramid
 
 ```
-     [E2E Tests]          ← Future
-         ↑
-     [Integration]        ← Manual
-         ↑
- [Component Tests]        ← 80 (Unit)
-         ↑
- [No Static Tests]        ← N/A
+      [E2E Tests]          ← Future
+          ↑
+      [Integration]        ← Manual
+          ↑
+  [Component Tests]        ← 95 (Unit)
+          ↑
+  [No Static Tests]        ← N/A
 ```
 
 ### 9.2 Test Coverage
 
-| Module | Files | Tests | Status |
-|--------|-------|-------|--------|
-| sensitive | 1 | 10 | ✅ |
-| sanitizer | 1 | 10 | ✅ |
-| riskEngine | 1 | 17 | ✅ |
-| eventManager | 1 | 13 | ✅ |
-| patternRegistry | 1 | 8 | ✅ |
-| repoConfig | 1 | 7 | ✅ |
-| codeAnalysisAgent | 1 | 0 | ⏳ |
-| testGeneratorAgent | 1 | 0 | ⏳ |
-| diagnosisAgent | 1 | 0 | ⏳ |
-| orchestratorAgent | 1 | 4 | ✅ |
-| **TOTAL** | **11** | **80** | **80/80 pass** |
+| Module | Tests | Status |
+|--------|-------|--------|
+| sensitive | 12 | ✅ |
+| sanitizer | 14 | ✅ |
+| riskEngine | 22 | ✅ |
+| eventManager | 7 | ✅ |
+| patternRegistry (+ repoConfig) | 36 | ✅ |
+| orchestratorAgent | 4 | ✅ |
+| **TOTAL** | **95** | **95/95 pass** |
+
+> Run with `pnpm run compile && node --test "dist/**/*.test.js"`. Coverage is **not** measured by a coverage tool in this repo.
 
 ### 9.3 Test Categories
 
-#### Unit Tests
-- Pattern detection (positive & negative cases)
-- Sanitization accuracy
-- Risk scoring (all scenarios)
-- Event manager behavior
-
-#### Autonomous QA Tests
-- Agent initialization
-- Loop control
-- State management
-- Configuration validation
+#### Unit Tests (`node --test`)
+- Pattern detection (positive, negative, allow-list, base64/IP hardening)
+- Sanitization accuracy (incl. placeholder double-sanitization)
+- Risk scoring (all scenarios, critical floor, path modifiers)
+- Event manager / clipboard behavior
 
 #### Integration Tests
-- Command execution (manual)
+- Command execution (manual, via `test/integration`)
 - Context menu interaction (manual)
 - Clipboard monitoring (manual)
 
 ---
 
-## 10. Autonomous QA System
+## 10. Autonomous QA System (Experimental / Prototype)
 
 ### 10.1 Overview
 
-The autonomous QA system implements a self-healing loop that continuously tests, diagnoses, and improves the Safe Send extension. Following the design in `prompt.md`, it consists of 4 core agents and an orchestrator.
+> ⚠️ **Status: prototype, not a substitute for the real test suite.** The agents in `src/` (`codeAnalysisAgent`, `testGeneratorAgent`, `diagnosisAgent`, `orchestratorAgent`) are scaffolding. Their test execution and "fix application" are **simulated** (they use `Math.random()` to fake pass/fail outcomes and only log fixes — they do not actually run or modify the extension). Do **not** rely on their reported metrics for quality assurance.
 
-**Key Capabilities:**
-- ✅ Automated test generation from code analysis
-- ✅ Failure diagnosis with root cause analysis
-- ✅ Pattern learning for recurring issues
-- ✅ Automatic fix generation and application
-- ✅ Continuous loop until all tests pass
-- ✅ Comprehensive artifact storage and reporting
+The authoritative quality signal is the `node --test` unit suite described in §9.2 (95 tests, all passing).
+
+The orchestrator design (`runLoop()`) is a real control-loop skeleton that could later be wired to the actual test runner. It consists of 4 core agents and an orchestrator.
+
+**Intended capabilities (not yet functional):**
+- Automated test generation from code analysis
+- Failure diagnosis with root cause analysis
+- Pattern learning for recurring issues
+- Automatic fix generation and application
+- Continuous loop until all tests pass
+- Comprehensive artifact storage and reporting
 
 ### 10.2 Agent Responsibilities
 
@@ -199,7 +196,7 @@ The system automatically generates:
 - **Test cases:** Happy path, failure cases, edge conditions
 - **Playwright scripts:** VS Code extension tests
 - **Test data:** Valid, invalid, and edge-case inputs
-- **Coverage:** All 9 secret patterns, path modifiers, performance scenarios
+- **Coverage (intended):** All 41 secret patterns, path modifiers, performance scenarios
 
 ### 10.5 Diagnosis & Learning
 
@@ -219,19 +216,9 @@ All artifacts stored in `test_data/`:
 - Pattern database (`runs/pattern-database.json`)
 - Reports (`reports/loop-report-*.json`)
 
-### 10.7 Usage
+### 10.7 Status
 
-```bash
-# Compile
-npm run compile
-
-# Run autonomous loop
-node dist/index.js
-
-# View results
-cat test_data/runs/loop-state.json
-cat test_data/runs/diagnoses.json
-```
+The autonomous-loop code (`src/index.ts` and the four agent modules) has been **removed** from this repository. The control-loop design above is retained as documentation only. Quality is verified by the real `node --test` suite (see §9.2), not by a simulated loop.
 
 ---
 
@@ -241,12 +228,12 @@ cat test_data/runs/diagnoses.json
 
 ✅ **Modular Design** - Independent, testable components  
 ✅ **Clear Separation** - Presentation, application, domain, infrastructure, autonomous QA layers  
-✅ **Testability** - 100% unit test coverage  
+✅ **Testability** - 95 unit tests (`node --test`)  
 ✅ **Performance** - Sub-500ms for typical use cases  
 ✅ **Extensibility** - Easy to add new patterns or features  
 ✅ **Security** - No external dependencies or network access  
 ✅ **Maintainability** - Clean code, documented, typed  
-✅ **Autonomy** - Self-healing QA system
+⚠️ **Autonomous QA** - Prototype only; real suite is §9.2
 
 ### 11.2 Design Decisions
 
@@ -276,12 +263,11 @@ cat test_data/runs/diagnoses.json
 
 ### 11.3 Quality Metrics
 
-- **Code Coverage:** 100%
-- **Test Pass Rate:** 100% (80/80 tests)
-- **Performance Target:** < 500ms (met)
-- **Security Review:** No vulnerabilities
-- **User Experience:** Improved with context menu
-- **Autonomous Tests:** 4 unit tests for orchestrator
+- **Unit tests:** 95 passing (`node --test`)
+- **Coverage tool:** not run in this repo (do not claim 100%)
+- **Performance Target:** < 500ms (met for typical inputs)
+- **Security Review:** No network access; offline-only
+- **Autonomous QA:** prototype only — see §10.1; not a quality gate
 
 ### 11.4 Production Readiness
 
@@ -293,15 +279,17 @@ The Safe Send extension follows modern architectural best practices, maintains h
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Sensitive data detection | ✅ 9 patterns | All production-ready |
-| Risk scoring | ✅ V2 | Context-aware |
+| Sensitive data detection | ✅ 41 patterns | All production-ready |
+| Risk scoring | ✅ | Context-aware, critical floor |
 | Sanitization | ✅ | Placeholder-based |
 | Clipboard monitoring | ✅ | 200ms polling |
-| Autonomous testing | ✅ | 4 agents |
-| Pattern learning | ✅ | Recurring issues |
-| Automatic fixes | ✅ | Code patches |
-| Loop control | ✅ | Configurable |
-| Artifact storage | ✅ | test_data/ |
+| URL allow-list | ✅ | `safeSend.urlAllowlist` |
+| Custom patterns | ✅ | Settings + `.safe-send.json` (max 50) |
+| Autonomous QA | ⚠️ Experimental | Simulated; not a quality gate (see §10) |
+| Pattern learning | ⏳ | Planned |
+| Automatic fixes | ⏳ | Planned |
+| Loop control | ⚠️ | Skeleton only |
+| Artifact storage | ⚠️ | Written by prototype loop |
 
 ---
 

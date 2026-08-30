@@ -4,6 +4,7 @@ import {
   buildPatternList,
   type CompiledPattern,
   MAX_CLIPBOARD_SIZE_BYTES,
+  setUrlAllowlist,
   type PatternDefinition,
 } from "./patternRegistry";
 import { loadRepoConfig } from "./repoConfig";
@@ -55,6 +56,12 @@ function loadCustomPatternDefs(): PatternDefinition[] {
   }
 }
 
+/** Reads the `safeSend.urlAllowlist` setting into the shared registry allow-list. */
+function syncUrlAllowlist(): void {
+  const config = vscode.workspace.getConfiguration("safeSend");
+  setUrlAllowlist(config.get<string[]>("urlAllowlist", []));
+}
+
 /** Builds (or refreshes) the active pattern list, with once-only warnings for invalid patterns. */
 function buildActivePatterns(): CompiledPattern[] {
   try {
@@ -67,11 +74,13 @@ function buildActivePatterns(): CompiledPattern[] {
 
 export function registerEventManager(context: vscode.ExtensionContext): void {
   let activePatterns = buildActivePatterns();
+  syncUrlAllowlist();
 
   // Refresh patterns when VS Code settings change.
   const configWatcher = vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration("safeSend")) {
       activePatterns = buildActivePatterns();
+      syncUrlAllowlist();
     }
   });
   context.subscriptions.push(configWatcher);
