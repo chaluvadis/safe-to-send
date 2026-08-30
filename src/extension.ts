@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 import { registerEventManager } from "./eventManager";
-import { BUILT_IN_PATTERNS, compilePattern, type CompiledPattern } from "./patternRegistry";
+import { buildPatternList, setUrlAllowlist, type CompiledPattern } from "./patternRegistry";
 import { loadRepoConfig } from "./repoConfig";
 import { assessRisk } from "./riskEngine";
 import { sanitize } from "./sanitizer";
 import { detectSensitiveData, detectSensitiveDataWithRanges } from "./sensitive";
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { join } from "path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * Checks if a file path matches any of the user-configured exclude glob patterns.
@@ -34,10 +34,7 @@ function isFileExcluded(filePath: string): boolean {
       if (regex.test(normalized)) {
         return true;
       }
-    } catch {
-      // Invalid pattern, skip
-      continue;
-    }
+    } catch {}
   }
   return false;
 }
@@ -104,6 +101,16 @@ export function activate(context: vscode.ExtensionContext) {
   // Set up clipboard monitoring
   registerEventManager(context);
 
+  // Sync URL allow-list from settings and keep it fresh on config changes.
+  syncUrlAllowlist();
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration("safeSend")) {
+        syncUrlAllowlist();
+      }
+    }),
+  );
+
   // Event listeners for diagnostics and status bar
   const onDidChangeActiveTextEditor = vscode.window.onDidChangeActiveTextEditor(() => {
     updateStatusBar(context, statusBarItem);
@@ -135,6 +142,28 @@ export function activate(context: vscode.ExtensionContext) {
   console.log("Safe Send: All components initialized");
 }
 
+/**
+ * Reads the `safeSend.urlAllowlist` setting and pushes it into the pattern
+ * registry so trusted URL hosts are not redacted or flagged.
+ */
+function syncUrlAllowlist(): void {
+  const config = vscode.workspace.getConfiguration("safeSend");
+  const allowlist: string[] = config.get("urlAllowlist", []);
+  setUrlAllowlist(allowlist);
+}
+
+/**
+ * Loads built-in patterns plus repo-config custom patterns through
+ * `buildPatternList` (so the MAX_CUSTOM_PATTERNS cap and invalid-regex
+ * warnings are honoured, consistent with the clipboard monitor).
+ */
+function loadAllPatterns(docOrUri?: vscode.TextDocument | vscode.Uri): CompiledPattern[] {
+  const uri = docOrUri && "uri" in docOrUri ? docOrUri.uri : docOrUri;
+  const workspacePath = uri ? vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath || "" : "";
+  const customPatternDefs = loadRepoConfig(workspacePath);
+  return buildPatternList(customPatternDefs, (msg) => vscode.window.showWarningMessage(msg));
+}
+
 export function deactivate() {
   console.log("Safe Send extension deactivated");
 }
@@ -142,7 +171,7 @@ export function deactivate() {
 // ==================== STATUS BAR ====================
 
 async function updateStatusBar(
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   statusBarItem: vscode.StatusBarItem,
 ) {
   const editor = vscode.window.activeTextEditor;
@@ -170,14 +199,7 @@ async function updateStatusBar(
   }
 
   try {
-    const customPatternDefs = loadRepoConfig(
-      vscode.workspace.getWorkspaceFolder(editor.document.uri)?.uri.fsPath || "",
-    );
-    const { compilePattern } = await import("./patternRegistry");
-    const customPatterns = customPatternDefs
-      .map((def) => compilePattern(def))
-      .filter((p): p is CompiledPattern => p !== null);
-    const allPatterns = [...BUILT_IN_PATTERNS, ...customPatterns];
+    const allPatterns = loadAllPatterns(editor.document);
     const riskResult = assessRisk(text, filePath, allPatterns);
     const { score, level, findings } = riskResult;
 
@@ -218,7 +240,10 @@ function updateDiagnosticsForActiveEditor(diagnostics: vscode.DiagnosticCollecti
   }
 }
 
-async function updateDiagnosticsForDocument(diagnostics: vscode.DiagnosticCollection, document: vscode.TextDocument) {
+async function updateDiagnosticsForDocument(
+  diagnostics: vscode.DiagnosticCollection,
+  document: vscode.TextDocument,
+) {
   await updateDiagnostics(diagnostics, document);
 }
 
@@ -240,12 +265,7 @@ async function updateDiagnostics(
   }
 
   try {
-    const workspacePath = vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath || "";
-    const customPatternDefs = loadRepoConfig(workspacePath);
-    const customPatterns = customPatternDefs
-      .map((def) => compilePattern(def))
-      .filter((p): p is CompiledPattern => p !== null);
-    const allPatterns = [...BUILT_IN_PATTERNS, ...customPatterns];
+    const allPatterns = loadAllPatterns(document);
 
     const sensitiveMatches = detectSensitiveDataWithRanges(text, allPatterns);
 
@@ -276,16 +296,14 @@ async function updateDiagnostics(
 class SafeSendCodeActionProvider implements vscode.CodeActionProvider {
   provideCodeActions(
     document: vscode.TextDocument,
-    range: vscode.Range | vscode.Selection,
+    _range: vscode.Range | vscode.Selection,
     context: vscode.CodeActionContext,
     _token: vscode.CancellationToken,
   ): vscode.ProviderResult<vscode.CodeAction[]> {
     const actions: vscode.CodeAction[] = [];
 
     // Only provide actions for Safe Send diagnostics
-    const safeSendDiagnostics = context.diagnostics.filter(
-      (d) => d.source === "Safe Send",
-    );
+    const safeSendDiagnostics = context.diagnostics.filter((d) => d.source === "Safe Send");
     if (safeSendDiagnostics.length === 0) {
       return undefined;
     }
@@ -322,7 +340,7 @@ class SafeSendCodeActionProvider implements vscode.CodeActionProvider {
 
 // ==================== COMMAND HANDLERS ====================
 
-async function handleSanitizeSelection(context: vscode.ExtensionContext) {
+async function handleSanitizeSelection(_context: vscode.ExtensionContext) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     vscode.window.showWarningMessage("No active editor");
@@ -337,14 +355,7 @@ async function handleSanitizeSelection(context: vscode.ExtensionContext) {
   }
 
   try {
-    const customPatternDefs = loadRepoConfig(
-      vscode.workspace.getWorkspaceFolder(editor.document.uri)?.uri.fsPath || "",
-    );
-    const { compilePattern } = await import("./patternRegistry");
-    const customPatterns = customPatternDefs
-      .map((def) => compilePattern(def))
-      .filter((p): p is CompiledPattern => p !== null);
-    const allPatterns = [...BUILT_IN_PATTERNS, ...customPatterns];
+    const allPatterns = loadAllPatterns(editor.document);
 
     const sanitized = sanitize(text, allPatterns);
     if (sanitized === text) {
@@ -363,7 +374,7 @@ async function handleSanitizeSelection(context: vscode.ExtensionContext) {
   }
 }
 
-async function handleSanitizeFile(context: vscode.ExtensionContext) {
+async function handleSanitizeFile(_context: vscode.ExtensionContext) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     vscode.window.showWarningMessage("No active editor");
@@ -375,21 +386,16 @@ async function handleSanitizeFile(context: vscode.ExtensionContext) {
 
   // Skip if file is excluded
   if (isFileExcluded(filePath)) {
-    vscode.window.showInformationMessage("File is excluded by Safe Send settings and will not be sanitized.");
+    vscode.window.showInformationMessage(
+      "File is excluded by Safe Send settings and will not be sanitized.",
+    );
     return;
   }
 
   const text = document.getText();
 
   try {
-    const customPatternDefs = loadRepoConfig(
-      vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath || "",
-    );
-    const { compilePattern } = await import("./patternRegistry");
-    const customPatterns = customPatternDefs
-      .map((def) => compilePattern(def))
-      .filter((p): p is CompiledPattern => p !== null);
-    const allPatterns = [...BUILT_IN_PATTERNS, ...customPatterns];
+    const allPatterns = loadAllPatterns(document);
 
     const sanitized = sanitize(text, allPatterns);
     if (sanitized === text) {
@@ -398,10 +404,7 @@ async function handleSanitizeFile(context: vscode.ExtensionContext) {
     }
 
     // Apply full document edit
-    const fullRange = new vscode.Range(
-      document.positionAt(0),
-      document.positionAt(text.length),
-    );
+    const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(text.length));
     await editor.edit((editBuilder) => {
       editBuilder.replace(fullRange, sanitized);
     });
@@ -415,25 +418,20 @@ async function handleSanitizeFile(context: vscode.ExtensionContext) {
 
 // Code action handler: sanitizes a single match (called from code action command)
 async function handleSanitizeMatch(uri: vscode.Uri, range: vscode.Range, patternId: string) {
-  const workspacePath = vscode.workspace.getWorkspaceFolder(uri)?.uri.fsPath || "";
-  const customPatternDefs = loadRepoConfig(workspacePath);
-  const customPatterns = customPatternDefs
-    .map((def) => compilePattern(def))
-    .filter((p): p is CompiledPattern => p !== null);
-  const allPatterns = [...BUILT_IN_PATTERNS, ...customPatterns];
-  const pattern = allPatterns.find(p => p.id === patternId);
+  const allPatterns = loadAllPatterns(uri);
+  const pattern = allPatterns.find((p) => p.id === patternId);
   if (!pattern) {
     vscode.window.showErrorMessage(`Pattern not found: ${patternId}`);
     return;
   }
 
   const editor = await vscode.window.showTextDocument(uri);
-  await editor.edit(edit => {
+  await editor.edit((edit) => {
     edit.replace(range, pattern.placeholder);
   });
 }
 
-async function handleScanAndCopy(context: vscode.ExtensionContext) {
+async function handleScanAndCopy(_context: vscode.ExtensionContext) {
   const editor = vscode.window.activeTextEditor;
   if (!editor) {
     vscode.window.showWarningMessage("No active editor found");
@@ -455,16 +453,7 @@ async function handleScanAndCopy(context: vscode.ExtensionContext) {
       return;
     }
 
-    const customPatternDefs = loadRepoConfig(
-      vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath || "",
-    );
-
-    const { compilePattern } = await import("./patternRegistry");
-    const customPatterns = customPatternDefs
-      .map((def) => compilePattern(def))
-      .filter((p): p is CompiledPattern => p !== null);
-
-    const allPatterns = [...BUILT_IN_PATTERNS, ...customPatterns];
+    const allPatterns = loadAllPatterns(document);
     const detected = detectSensitiveData(text, allPatterns);
     const riskResult = assessRisk(text, document.fileName, allPatterns);
     const riskScore = riskResult.score;
@@ -510,7 +499,12 @@ async function showSanitizationDialog(
   const riskLevel =
     riskScore >= 60 ? "HIGH RISK " : riskScore >= 30 ? "MEDIUM RISK ⚠️" : "LOW RISK ℹ️";
 
-  const items: { label: string; description: string; detail: string; action: "copy-sanitized" | "copy-raw" | "cancel" }[] = [
+  const items: {
+    label: string;
+    description: string;
+    detail: string;
+    action: "copy-sanitized" | "copy-raw" | "cancel";
+  }[] = [
     {
       label: "Sanitize & Copy",
       description: "Replace sensitive data with placeholders",

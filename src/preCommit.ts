@@ -7,9 +7,9 @@
  * Called by the .git/hooks/pre-commit script installed by the extension.
  */
 
-import { execSync } from "child_process";
-import { readFileSync, existsSync, statSync } from "fs";
-import { join } from "path";
+import { execSync } from "node:child_process";
+import { readFileSync, existsSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 // CommonJS globals are automatically available in compiled output
 // No need to declare — they exist at runtime
@@ -23,7 +23,7 @@ const REPO_ROOT = process.cwd();
 
 try {
   // Get list of staged files (added/modified)
-  const stagedOutput = execSync('git diff --cached --name-only --diff-filter=ACMR', {
+  const stagedOutput = execSync("git diff --cached --name-only --diff-filter=ACMR", {
     cwd: REPO_ROOT,
     encoding: "utf8",
     stdio: ["pipe", "pipe", "pipe"],

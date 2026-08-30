@@ -79,6 +79,11 @@ test("detectSensitiveData does not match near misses", () => {
   assert.deepEqual(detected, []);
 });
 
+test("detectSensitiveData reports each label only once (no duplicates)", () => {
+  const detected = detectSensitiveData("sk-11111111111111111111 and sk-22222222222222222222");
+  assert.deepEqual(detected, ["OpenAI API key"]);
+});
+
 test("sanitizeSensitiveData replaces only sensitive values", () => {
   const input =
     "ant='sk-ant-12345678901234567890' token='sk-12345678901234567890' gh='ghp_123456789012345678901234567890123456' pk='-----BEGIN PRIVATE KEY-----' ip=127.0.0.1 email=dev@example.com password=\"abc\"";

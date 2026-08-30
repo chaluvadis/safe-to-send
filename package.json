@@ -2,7 +2,7 @@
   "name": "safe-send",
   "displayName": "Safe Send",
   "description": "Scan code for sensitive data before copying to AI tools.",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "private": false,
   "license": "MIT",
   "repository": {
@@ -35,6 +35,22 @@
       {
         "command": "safeSend.scanAndCopyForAI",
         "title": "Safe Send: Scan & Copy for AI"
+      },
+      {
+        "command": "safeSend.sanitizeSelection",
+        "title": "Safe Send: Sanitize Selection"
+      },
+      {
+        "command": "safeSend.sanitizeFile",
+        "title": "Safe Send: Sanitize File"
+      },
+      {
+        "command": "safeSend.sanitizeMatch",
+        "title": "Safe Send: Sanitize Match"
+      },
+      {
+        "command": "safeSend.installPreCommitHook",
+        "title": "Safe Send: Install Pre-Commit Hook"
       }
     ],
     "menus": {
@@ -56,6 +72,53 @@
           "when": "editorTextFocus"
         }
       ]
+    },
+    "configuration": {
+      "title": "Safe Send",
+      "properties": {
+        "safeSend.urlAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Trusted URL hosts that should **not** be redacted or flagged. Supports exact hosts (e.g. `example.com`) and wildcards (e.g. `*.example.com`). Matching is case-insensitive and ignores the scheme.",
+          "scope": "resource"
+        },
+        "safeSend.excludeGlobs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Glob patterns for files to exclude from scanning and sanitization.",
+          "scope": "resource"
+        },
+        "safeSend.customPatterns": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "User-defined detection patterns (id, label, regex, placeholder, riskScore, critical).",
+          "scope": "resource"
+        },
+        "safeSend.clipboard.monitor": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Monitor the clipboard and warn when sensitive data is copied.",
+          "scope": "resource"
+        },
+        "safeSend.repoConfig.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Load pattern definitions from a `.safe-send.json` file in the workspace.",
+          "scope": "resource"
+        },
+        "safeSend.repoConfig.filename": {
+          "type": "string",
+          "default": ".safe-send.json",
+          "markdownDescription": "File name for repository-specific pattern configuration.",
+          "scope": "resource"
+        }
+      }
     }
   },
   "scripts": {
@@ -63,13 +126,13 @@
     "package": "vsce package --allow-package-all-secrets",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "test": "pnpm run compile && node --test \"dist/**/*.test.js\""
+    "test": "tsc -p tsconfig.test.json && node --test \"dist-test/test/*.test.js\""
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.13",
+    "@biomejs/biome": "^2.5.11",
     "@vscode/vsce": "latest",
-    "@types/node": "^25.6.0",
-    "@types/vscode": "^1.116.0",
-    "typescript": "^6.0.3"
+    "@types/node": "^26.4.0",
+    "@types/vscode": "^1.134.0",
+    "typescript": "^7.0.2"
   }
 }

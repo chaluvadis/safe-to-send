@@ -52,10 +52,10 @@ test("assessRisk scores Hardcoded secret alone as MEDIUM", () => {
   assert.deepEqual(result.findings, ["Hardcoded secret"]);
 });
 
-test("assessRisk applies .env context modifier", () => {
+test("assessRisk applies .env context modifier (raises risk)", () => {
   const base = assessRisk('password = "abc"');
   const inEnv = assessRisk('password = "abc"', "/workspace/.env");
-  assert.equal(inEnv.score, base.score - 10);
+  assert.equal(inEnv.score, base.score + 15);
 });
 
 test("assessRisk applies README.md context modifier", () => {
@@ -70,10 +70,10 @@ test("assessRisk applies /test/ path modifier", () => {
   assert.equal(inTest.score, base.score - 15);
 });
 
-test("assessRisk normalizes Windows .env path modifier", () => {
+test("assessRisk normalizes Windows .env path modifier (raises risk)", () => {
   const base = assessRisk('password = "abc"');
   const windowsEnv = assessRisk('password = "abc"', "C:\\workspace\\.env");
-  assert.equal(windowsEnv.score, base.score - 10);
+  assert.equal(windowsEnv.score, base.score + 15);
 });
 
 test("assessRisk normalizes Windows /test/ path modifier", () => {
@@ -97,7 +97,7 @@ test("assessRisk applies >3 findings modifier on top of >=2 modifier", () => {
   ].join(" ");
 
   const result = assessRisk(input, "/workspace/test/.env");
-  assert.equal(result.score, 95);
+  assert.equal(result.score, 100);
   assert.equal(result.level, "HIGH");
   assert.equal(result.findings.length, 4);
 });
@@ -120,6 +120,34 @@ test("assessRisk clamps score to 100", () => {
   const result = assessRisk(input, "/workspace/README.md");
   assert.ok(result.score <= 100);
   assert.equal(result.score, 100);
+});
+
+test("assessRisk scores Anthropic key as HIGH", () => {
+  const result = assessRisk("sk-ant-12345678901234567890");
+  assert.ok(result.score >= 60);
+  assert.equal(result.level, "HIGH");
+  assert.ok(result.findings.includes("Anthropic API key"));
+});
+
+test("assessRisk scores GitHub token as HIGH", () => {
+  const result = assessRisk("ghp_123456789012345678901234567890123456");
+  assert.ok(result.score >= 60);
+  assert.equal(result.level, "HIGH");
+  assert.ok(result.findings.includes("GitHub token"));
+});
+
+test("assessRisk scores private key block as HIGH", () => {
+  const result = assessRisk("-----BEGIN PRIVATE KEY-----");
+  assert.ok(result.score >= 60);
+  assert.equal(result.level, "HIGH");
+  assert.ok(result.findings.includes("Private key block"));
+});
+
+test("assessRisk keeps critical secrets at HIGH inside test/doc files", () => {
+  const inTest = assessRisk("AKIAABCDEFGHIJKLMNOP", "/workspace/test/setup.ts");
+  assert.equal(inTest.level, "HIGH");
+  const inReadme = assessRisk("ghp_123456789012345678901234567890123456", "/workspace/README.md");
+  assert.equal(inReadme.level, "HIGH");
 });
 
 test("assessRisk works without filePath argument", () => {
