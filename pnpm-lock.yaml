@@ -15,7 +15,7 @@ importers:
         specifier: ^26.4.0
         version: 26.4.0
       '@types/vscode':
-        specifier: ^1.134.0
+        specifier: ^1.116.0
         version: 1.134.0
       '@vscode/vsce':
         specifier: latest
